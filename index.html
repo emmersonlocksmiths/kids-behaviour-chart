@@ -463,7 +463,7 @@ function hideConfirm() {
   document.getElementById('confirmOverlay').classList.remove('active');
   confirmCallback = null;
 }
-const PIN_ENABLED = false;
+const PIN_ENABLED = true;
 async function requestEditAccess() {
   if (!state) await stateReadyPromise;
   if (!PIN_ENABLED) { enterMode('edit'); return; }
