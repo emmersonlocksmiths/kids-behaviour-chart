@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Behavior Chart</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FBF6EC;
+    --card: #FFFFFF;
+    --ink: #2E2A24;
+    --ink-soft: #6B6459;
+    --sage: #6E8B5D;
+    --sage-light: #E4EBDD;
+    --mustard: #E3A72F;
+    --mustard-light: #FBEBCB;
+    --clay: #C97B63;
+    --clay-light: #F5DFD6;
+    --line: #E9E1D2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cream);
+    font-family: 'Nunito', sans-serif;
+    color: var(--ink);
+    padding: 60px 16px 80px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1, h2, h3 { font-family: 'Fredoka', sans-serif; font-weight: 600; margin: 0; }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+  }
+  .family-name {
+    font-family: 'Fredoka', sans-serif; font-size: 24px; font-weight: 600;
+    border: none; background: transparent; color: var(--ink);
+    border-bottom: 2px dashed var(--line); padding: 2px 4px; width: 220px;
+  }
+  .family-name:focus { outline: none; border-color: var(--sage); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .jars { display: flex; gap: 18px; flex-wrap: wrap; }
+  .jar-block { text-align: left; flex: 1 1 280px; position: relative; }
+  .jar-row { display: flex; align-items: center; gap: 14px; }
+  .jar-visual { position: relative; flex-shrink: 0; }
+  .jar-svg.bounce { animation: jarBounce 0.5s ease; }
+  .jar-svg.tip { animation: jarTip 0.6s ease; transform-origin: 50% 90%; }
+  @keyframes jarBounce {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    35% { transform: scale(1.16) rotate(-3deg); }
+    65% { transform: scale(0.96) rotate(2deg); }
+  }
+  @keyframes jarTip {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-16deg); }
+    60% { transform: rotate(9deg); }
+    80% { transform: rotate(-4deg); }
+  }
+  .jar-lid.pop {
+    animation: lidPop 0.7s cubic-bezier(.34,1.56,.64,1);
+    transform-origin: 50% 100%;
+  }
+  @keyframes lidPop {
+    0% { transform: translateY(0) rotate(0deg); }
+    30% { transform: translateY(-16px) rotate(-18deg); }
+    55% { transform: translateY(-11px) rotate(12deg); }
+    80% { transform: translateY(-3px) rotate(-4deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+  .star-particle {
+    position: absolute; left: 50%; top: 42%; font-size: 46px; pointer-events: none; z-index: 6;
+    filter: drop-shadow(0 0 6px rgba(240,180,41,0.8));
+  }
+  .star-particle.fly-in {
+    animation: starIn 0.8s cubic-bezier(.34,1.56,.64,1) forwards;
+  }
+  .star-particle.tip-out {
+    animation: starOut 0.9s cubic-bezier(.4,0,.6,1) forwards;
+  }
+  @keyframes starIn {
+    0% { transform: translate(calc(-50% + var(--sx, 0px)), -85px) scale(0.4) rotate(0deg); opacity: 0; }
+    45% { opacity: 1; transform: translate(calc(-50% + var(--sx, 0px) * 0.4), -20px) scale(1.25) rotate(160deg); }
+    100% { transform: translate(-50%, 6px) scale(0.3) rotate(340deg); opacity: 0; }
+  }
+  @keyframes starOut {
+    0% { transform: translate(-50%, 6px) scale(0.6) rotate(0deg); opacity: 1; }
+    40% { transform: translate(calc(-50% + var(--sx, 0px) * 0.5), -14px) scale(1.15) rotate(-140deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--sx, 0px)), 100px) scale(0.25) rotate(-420deg); opacity: 0; }
+  }
+  .jar-svg { display: block; width: 112px; height: auto; }
+  .jar-block.full .jar-svg { animation: jarGlow 1.8s ease-in-out infinite; }
+  @keyframes jarGlow {
+    0%, 100% { filter: drop-shadow(0 0 0 rgba(227,167,47,0)); }
+    50% { filter: drop-shadow(0 0 7px rgba(227,167,47,0.8)); }
+  }
+  .jar-liquid { transition: transform 0.9s cubic-bezier(.4,0,.2,1); }
+  .jar-wave-inner { animation: waveMove 2.6s linear infinite; }
+  @keyframes waveMove {
+    from { transform: translateX(0); }
+    to { transform: translateX(-24px); }
+  }
+  .reward-banner.pop { animation: popIn 0.45s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes popIn {
+    from { transform: scale(0.4); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .jar-info { flex: 1; min-width: 0; }
+  .jar-name { font-size: 16px; font-weight: 700; }
+  .jar-pct { font-size: 26px; font-weight: 700; font-family: 'Fredoka', sans-serif; color: var(--ink); margin-top: 2px; }
+  .jar-encourage { font-size: 13px; font-weight: 700; color: var(--sage); margin-top: 3px; min-height: 16px; }
+  .pace-badge { position: absolute; top: -2px; right: 4px; font-size: 24px; line-height: 1; }
+  .reward-banner {
+    margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--mustard);
+    background: var(--mustard-light); border-radius: 8px; padding: 4px 6px;
+  }
+  .day-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+  .day-cell-mini {
+    border-radius: 10px; padding: 5px 2px 6px; text-align: center; background: #F1EDE2;
+    border: 1px solid transparent;
+  }
+  .day-cell-mini.positive { background: var(--sage-light); border-color: var(--sage); }
+  .day-cell-mini.negative { background: var(--clay-light); border-color: var(--clay); }
+  .day-cell-mini.neutral { background: var(--mustard-light); border-color: var(--mustard); }
+  .day-cell-mini.empty { opacity: 0.55; }
+  .day-cell-mini.today { box-shadow: 0 0 0 2px var(--ink) inset; }
+  .day-cell-mini .dlabel { font-size: 10px; font-weight: 700; color: var(--ink-soft); }
+  .day-cell-mini .demoji { font-size: 15px; line-height: 1.3; }
+  .day-cell-mini .dpts { font-size: 11px; font-weight: 700; color: var(--ink); min-height: 13px; }
+  .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .member-tab {
+    padding: 8px 16px; border-radius: 20px; border: 2px solid var(--line);
+    background: #fff; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px;
+    cursor: pointer; color: var(--ink);
+  }
+  .member-tab.active { color: #fff; }
+  .member-pill {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 20px;
+    border: 1px solid var(--line); background: #fff; font-size: 13px; font-weight: 700;
+  }
+  .member-pill button { border: none; background: none; cursor: pointer; color: var(--ink-soft); font-size: 13px; }
+  .add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=text], input[type=number] {
+    font-family: 'Nunito', sans-serif; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line); font-size: 13px;
+  }
+  input[type=text] { flex: 1; min-width: 120px; }
+  input[type=number] { width: 70px; }
+  select { font-family: 'Nunito', sans-serif; padding: 8px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
+  button.action {
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 13px; padding: 8px 14px;
+    border-radius: 8px; border: none; background: var(--sage); color: #fff; cursor: pointer;
+  }
+  button.action:disabled { background: var(--line); color: var(--ink-soft); cursor: default; }
+  button.action.special {
+    background: var(--mustard); font-size: 14px;
+    animation: specialPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes specialPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(227,167,47,0.55); }
+    50% { box-shadow: 0 0 0 6px rgba(227,167,47,0); }
+  }
+  .day-select-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: space-between; }
+  .day-nav { display: flex; align-items: center; gap: 8px; }
+  .day-nav-btn {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; cursor: pointer; font-size: 15px; color: var(--ink);
+  }
+  .day-nav-btn:disabled { opacity: 0.35; cursor: default; }
+  .day-nav-btn.today-btn {
+    width: auto; padding: 0 12px; font-size: 12px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; color: var(--sage); border-color: var(--sage);
+  }
+  .day-nav-label { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px; min-width: 118px; text-align: center; }
+  .smiley-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .smiley-btn {
+    flex: 1; font-size: 26px; padding: 10px 4px; border-radius: 12px; border: 2px solid var(--line);
+    background: #fff; cursor: pointer; text-align: center;
+  }
+  .smiley-btn.selected { border-color: var(--sage); background: var(--sage-light); }
+  .check-list { display: flex; flex-direction: column; gap: 6px; }
+  .check-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 14px;
+  }
+  .check-item.checked.good { background: var(--sage-light); border-color: var(--sage); }
+  .check-item.checked.bad { background: var(--clay-light); border-color: var(--clay); }
+  .check-item .pts { font-size: 11px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+  .check-tap { flex: 1; cursor: pointer; }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .step-btn {
+    width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; cursor: pointer; font-size: 15px; line-height: 1; color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-count { font-size: 13px; font-weight: 700; min-width: 14px; text-align: center; }
+  .today-points { text-align: center; font-family: 'Fredoka', sans-serif; font-size: 18px; margin: 14px 0 4px; }
+  .catalog-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px;
+    border: 1px solid var(--line); margin-bottom: 6px; font-size: 13px;
+  }
+  .catalog-row .pts { margin-left: auto; font-weight: 700; color: var(--ink-soft); }
+  .catalog-row button { border: none; background: none; cursor: pointer; color: var(--ink-soft); font-size: 14px; }
+  .footer-row { text-align: center; margin-top: 20px; }
+  .reset-link { font-size: 12px; color: var(--ink-soft); background: none; border: none; cursor: pointer; text-decoration: underline; }
+  .empty { font-size: 13px; color: var(--ink-soft); }
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; margin-bottom: 12px; }
+  .settings-label { font-size: 12px; color: var(--ink-soft); display: block; margin-bottom: 3px; }
+  .edit-corner-btn {
+    position: fixed; right: 14px; top: 14px; font-size: 12px; color: var(--ink-soft);
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 12px; cursor: pointer; opacity: 0.75; font-weight: 700; z-index: 10;
+  }
+  .pin-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(46,42,36,0.45);
+    align-items: center; justify-content: center; padding: 20px; z-index: 50;
+  }
+  .pin-overlay.active { display: flex; }
+  .pin-card {
+    background: var(--card); border-radius: 16px; padding: 24px; max-width: 300px; width: 100%; text-align: center;
+  }
+  .pin-card input {
+    width: 100%; font-size: 22px; text-align: center; letter-spacing: 6px; padding: 10px;
+    border-radius: 8px; border: 1px solid var(--line); margin: 14px 0 6px;
+  }
+  .pattern-svg { width: 220px; height: 220px; margin: 14px auto 6px; display: block; touch-action: none; user-select: none; }
+  .pattern-svg.shake { animation: patternShake 0.4s ease; }
+  @keyframes patternShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    50% { transform: translateX(8px); }
+    75% { transform: translateX(-5px); }
+  }
+  .pin-error { font-size: 12px; color: var(--clay); min-height: 16px; margin-bottom: 8px; }
+  .pin-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .pin-actions button { flex: 1; }
+  .edit-only { }
+  body.mode-view .edit-only { display: none !important; }
+</style>
+</head>
+<body>
+
+<button class="edit-corner-btn" id="switchModeBtn">Parent mode</button>
+
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-card">
+    <h3>Draw your pattern</h3>
+    <svg id="patternSvg" class="pattern-svg" viewBox="0 0 240 240"></svg>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-actions">
+      <button class="action" id="pinCancel" style="background:#fff;color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="pin-overlay" id="confirmOverlay">
+  <div class="pin-card">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMessage" style="font-size:13px; color:var(--ink-soft); margin:8px 0 4px;"></p>
+    <div class="pin-actions">
+      <button class="action" id="confirmCancelBtn" style="background:#fff;color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
+      <button class="action" id="confirmYesBtn" style="background:var(--clay);">Yes</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="header">
+    <input class="family-name" id="familyName" value="Loading..." />
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px;">Star jars</h3>
+    <div class="jars" id="jars"></div>
+  </div>
+
+  <div class="pill-row edit-only" id="editTabBar" style="margin-bottom:4px;">
+    <button id="editTabLog" class="member-tab">Today's log</button>
+    <button id="editTabSettings" class="member-tab">⚙️ Settings</button>
+  </div>
+
+  <div class="card edit-only" id="todaysLogCard">
+    <div class="section-title"><h3>Today's log</h3></div>
+    <div class="day-select-row">
+      <div class="pill-row" id="memberTabs"></div>
+      <div class="day-nav">
+        <button id="prevDayBtn" class="day-nav-btn" aria-label="Previous day">‹</button>
+        <span id="dayLabel" class="day-nav-label"></span>
+        <button id="gotoTodayBtn" class="day-nav-btn today-btn" style="display:none;">Today</button>
+      </div>
+    </div>
+    <div id="dailyLists"></div>
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:13px;">Behavior modifiers</h3></div>
+    <div id="smileyRow"></div>
+    <div class="today-points" id="todayPoints"></div>
+    <button id="nextDayBtn" class="action" style="width:100%; margin-top:10px;">Advance to next day →</button>
+  </div>
+
+  <div class="card edit-only" id="settingsCard">
+    <div class="section-title"><h3>Settings</h3></div>
+
+    <div class="section-title"><h3 style="font-size:14px;">Editing settings for</h3></div>
+    <div class="pill-row" id="settingsMemberTabs" style="margin-bottom:14px;"></div>
+
+    <div class="settings-grid">
+      <div>
+        <label class="settings-label">Weekly goal (points)</label>
+        <input type="number" id="weeklyGoal" style="width:100%;">
+      </div>
+      <div>
+        <label class="settings-label">Reward</label>
+        <input type="text" id="rewardText" style="width:100%;" placeholder="e.g. Movie night pick">
+      </div>
+    </div>
+    <label class="settings-label">Behavior modifiers — point multiplier (sad to great)</label>
+    <div class="settings-grid" id="smileyConfig"></div>
+
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Editing day</h3></div>
+    <p class="empty" style="margin-top:-6px;">Chores and things that lose points are both set per day — pick a day to build out that day's lists.</p>
+    <div class="pill-row" id="choreDayTabs" style="margin-bottom:14px;"></div>
+
+    <div class="section-title"><h3 style="font-size:14px;">Positive behaviors</h3></div>
+    <div id="choreCatalogList"></div>
+    <div class="add-row">
+      <input type="text" id="newChoreName" placeholder="Chore name">
+      <select id="newChoreIcon">
+        <option value="🧹">🧹</option><option value="🛏️">🛏️</option><option value="🧸">🧸</option>
+        <option value="🐾">🐾</option><option value="🍽️">🍽️</option><option value="🌱">🌱</option>
+        <option value="👟">👟</option><option value="🦷">🦷</option><option value="🎒">🎒</option><option value="🗑️">🗑️</option>
+        <option value="📚">📚</option><option value="📖">📖</option><option value="✏️">✏️</option><option value="🎨">🎨</option>
+        <option value="🧺">🧺</option><option value="🧽">🧽</option><option value="🚿">🚿</option>
+        <option value="🧦">🧦</option><option value="🥕">🥕</option><option value="🎹">🎹</option>
+        <option value="⚽">⚽</option><option value="🚲">🚲</option><option value="🧴">🧴</option>
+        <option value="🛒">🛒</option><option value="🌳">🌳</option>
+        <option value="🙏">🙏</option><option value="💤">💤</option><option value="⭐">⭐</option>
+      </select>
+      <input type="number" id="newChorePoints" value="1">
+      <button class="action" id="addChoreBtn">Add</button>
+    </div>
+
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Negative behaviors</h3></div>
+    <div id="badCatalogList"></div>
+    <div class="add-row">
+      <input type="text" id="newBadName" placeholder="e.g. Fighting">
+      <select id="newBadIcon">
+        <option value="😠">😠</option><option value="🗯️">🗯️</option><option value="🙅">🙅</option>
+        <option value="🚫">🚫</option><option value="😤">😤</option><option value="⚠️">⚠️</option>
+        <option value="😢">😢</option><option value="🙊">🙊</option><option value="👊">👊</option>
+        <option value="📱">📱</option><option value="🛑">🛑</option><option value="😑">😑</option>
+        <option value="🕐">🕐</option><option value="🤷">🤷</option><option value="😴">😴</option>
+      </select>
+      <input type="number" id="newBadPoints" value="1">
+      <button class="action" id="addBadBtn" style="background:var(--clay);">Add</button>
+    </div>
+
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Family</h3></div>
+    <div class="pill-row" id="memberPills"></div>
+    <div class="add-row">
+      <input type="text" id="newMemberName" placeholder="Add a family member">
+      <button class="action" id="addMemberBtn">Add</button>
+    </div>
+
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Parent mode pattern</h3></div>
+    <p class="empty" style="margin-top:-6px;">Draw a new pattern below (at least 4 dots) to change it. It saves as soon as you lift your finger.</p>
+    <svg id="patternSettingSvg" class="pattern-svg" viewBox="0 0 240 240" style="margin:0 auto;"></svg>
+  </div>
+
+  <div class="footer-row edit-only">
+    <button class="reset-link" id="resetBtn">Reset all chart data</button>
+  </div>
+
+</div>
+
+<div id="sundayResetWrap" style="text-align:center; margin: 8px auto 20px; display:none;">
+  <button class="action" id="sundayResetBtn" style="background:var(--clay);">Reset all data for a new week</button>
+</div>
+
+<script>
+// ===== CLOUD SYNC SETUP =====
+// Paste your Firebase project's config here (see setup instructions).
+// This is what lets your phone and the iPad share and sync the same data.
+const firebaseConfig = {
+  apiKey: "AIzaSyBYK1eNxHZfA1loH2N9DNSYg1amFPKG9vI",
+  authDomain: "kids-behaviour-chart-5fad9.firebaseapp.com",
+  databaseURL: "https://kids-behaviour-chart-5fad9-default-rtdb.firebaseio.com",
+  projectId: "kids-behaviour-chart-5fad9"
+};
+// ===== END CLOUD SYNC SETUP =====
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const SMILEYS = ['😢','🙁','😐','🙂','😄'];
+const COLORS = ['#6E8B5D','#C97B63','#E3A72F','#4E7A8C','#A0669C','#B4553E'];
+
+let state = null;
+let weekOffset = 0;
+let appMode = null;
+let activeMemberId = null;
+let editSubView = 'log';
+let settingsMemberId = null;
+let settingsChoreDay = null;
+let activeDay = null;
+let stateReadyPromise = null;
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
+function getMember(id) {
+  return state.members.find(m => m.id === id);
+}
+
+function defaultChoreSet() {
+  return [
+    { id: uid(), name: 'Made bed', icon: '🛏️', points: 1 },
+    { id: uid(), name: 'Tidied toys', icon: '🧸', points: 1 },
+    { id: uid(), name: 'Set the table', icon: '🍽️', points: 1 }
+  ];
+}
+function defaultChoreCatalogByDay() {
+  const byDay = {};
+  for (let d = 0; d < 7; d++) byDay[d] = defaultChoreSet();
+  return byDay;
+}
+function defaultBadSet() {
+  return [
+    { id: uid(), name: 'Fighting', icon: '😠', points: 2 },
+    { id: uid(), name: 'Talking back', icon: '🗯️', points: 2 },
+    { id: uid(), name: 'Not listening', icon: '🙅', points: 1 }
+  ];
+}
+function defaultBadCatalogByDay() {
+  const byDay = {};
+  for (let d = 0; d < 7; d++) byDay[d] = defaultBadSet();
+  return byDay;
+}
+
+function defaultMemberExtras() {
+  return {
+    weeklyGoal: 20,
+    reward: "Movie night pick",
+    smileyMultipliers: [0.5, 1, 1.5, 2, 2.5],
+    choreCatalogByDay: defaultChoreCatalogByDay(),
+    badCatalogByDay: defaultBadCatalogByDay()
+  };
+}
+
+function defaultState() {
+  return {
+    familyName: "Josiah & Henry",
+    members: [
+      Object.assign({ id: uid(), name: 'Josiah', color: COLORS[0] }, defaultMemberExtras()),
+      Object.assign({ id: uid(), name: 'Henry', color: COLORS[1] }, defaultMemberExtras())
+    ],
+    pin: "0000",
+    logs: {}
+  };
+}
+
+let pinPurpose = 'edit';
+const DEFAULT_PATTERN = '3,6,4,2';
+let confirmCallback = null;
+function showConfirm(title, message, onConfirm) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  confirmCallback = onConfirm;
+  document.getElementById('confirmOverlay').classList.add('active');
+}
+function hideConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('active');
+  confirmCallback = null;
+}
+function patternDotCenter(i) {
+  const col = i % 3, row = Math.floor(i / 3);
+  return { x: col * 80 + 40, y: row * 80 + 40 };
+}
+function renderPatternSvg(svg, points, livePoint) {
+  if (!svg) return;
+  let inner = '';
+  if (points.length > 0) {
+    const pts = points.map(i => { const c = patternDotCenter(i); return c.x + ',' + c.y; });
+    if (livePoint) pts.push(livePoint.x.toFixed(1) + ',' + livePoint.y.toFixed(1));
+    inner += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--sage)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>';
+  }
+  for (let i = 0; i < 9; i++) {
+    const c = patternDotCenter(i);
+    const active = points.includes(i);
+    inner += '<circle cx="' + c.x + '" cy="' + c.y + '" r="18" fill="none" stroke="' + (active ? 'var(--sage)' : 'var(--line)') + '" stroke-width="2.5"/>';
+    inner += '<circle cx="' + c.x + '" cy="' + c.y + '" r="' + (active ? 9 : 6) + '" fill="' + (active ? 'var(--sage)' : 'var(--line)') + '"/>';
+  }
+  svg.innerHTML = inner;
+}
+function nearestPatternDot(x, y) {
+  for (let i = 0; i < 9; i++) {
+    const c = patternDotCenter(i);
+    const dx = x - c.x, dy = y - c.y;
+    if (dx * dx + dy * dy <= 26 * 26) return i;
+  }
+  return -1;
+}
+function attachPatternHandlers(svg, onComplete) {
+  let points = [];
+  let dragging = false;
+  renderPatternSvg(svg, points);
+  function svgPoint(evt) {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = 240 / rect.width, scaleY = 240 / rect.height;
+    return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+  }
+  svg.onpointerdown = (e) => {
+    svg.setPointerCapture(e.pointerId);
+    dragging = true;
+    points = [];
+    const p = svgPoint(e);
+    const idx = nearestPatternDot(p.x, p.y);
+    if (idx >= 0) points.push(idx);
+    renderPatternSvg(svg, points, p);
+  };
+  svg.onpointermove = (e) => {
+    if (!dragging) return;
+    const p = svgPoint(e);
+    const idx = nearestPatternDot(p.x, p.y);
+    if (idx >= 0 && !points.includes(idx)) points.push(idx);
+    renderPatternSvg(svg, points, p);
+  };
+  const finish = () => {
+    if (!dragging) return;
+    dragging = false;
+    const finalPoints = points.slice();
+    renderPatternSvg(svg, finalPoints);
+    onComplete(finalPoints, () => {
+      points = [];
+      renderPatternSvg(svg, points);
+    });
+  };
+  svg.onpointerup = finish;
+  svg.onpointercancel = finish;
+}
+function showPinModal(purpose) {
+  pinPurpose = purpose || 'edit';
+  const heading = document.querySelector('#pinOverlay h3');
+  if (heading) heading.textContent = pinPurpose === 'reset' ? 'Confirm weekly reset — draw pattern' : 'Draw your pattern';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinOverlay').classList.add('active');
+  const svg = document.getElementById('patternSvg');
+  attachPatternHandlers(svg, (points, reset) => {
+    if (points.length < 1) return;
+    const entered = points.join(',');
+    if (entered === (state.pin || DEFAULT_PATTERN)) {
+      hidePinModal();
+      if (pinPurpose === 'reset') performWeeklyReset();
+      else enterMode('edit');
+    } else {
+      document.getElementById('pinError').textContent = "That pattern's not right. Try again.";
+      svg.classList.remove('shake');
+      void svg.getBoundingClientRect();
+      svg.classList.add('shake');
+      setTimeout(() => { svg.classList.remove('shake'); reset(); }, 400);
+    }
+  });
+}
+function hidePinModal() {
+  document.getElementById('pinOverlay').classList.remove('active');
+}
+const PIN_ENABLED = true;
+async function requestEditAccess() {
+  if (!state) await stateReadyPromise;
+  if (!PIN_ENABLED) { enterMode('edit'); return; }
+  showPinModal('edit');
+}
+function requestWeeklyReset() {
+  showPinModal('reset');
+}
+function performWeeklyReset() {
+  state.logs = {};
+  previouslyEarned = {};
+  encouragementCache = {};
+  saveState();
+  render();
+  showToast("New week started — all points reset.");
+}
+
+function updateCornerButton() {
+  const btn = document.getElementById('switchModeBtn');
+  if (appMode === 'view') {
+    btn.textContent = 'Parent mode';
+    btn.onclick = requestEditAccess;
+  } else if (appMode === 'edit') {
+    btn.textContent = 'Kid view';
+    btn.onclick = () => enterMode('view');
+  }
+}
+
+async function enterMode(mode) {
+  if (!state) await stateReadyPromise;
+  appMode = mode;
+  document.body.classList.toggle('mode-view', mode === 'view');
+  document.body.classList.toggle('mode-edit', mode === 'edit');
+  document.getElementById('familyName').disabled = (mode === 'view');
+  if (mode === 'edit') { activeDay = (new Date().getDay() + 6) % 7; editSubView = 'log'; }
+  if (activeDay === null) activeDay = (new Date().getDay() + 6) % 7;
+  if (settingsChoreDay === null) settingsChoreDay = (new Date().getDay() + 6) % 7;
+  if (!activeMemberId && state.members.length) activeMemberId = state.members[0].id;
+  updateCornerButton();
+  render();
+}
+
+function getMonday(offsetWeeks) {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMon + offsetWeeks * 7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+function weekKey(offsetWeeks) { return getMonday(offsetWeeks).toISOString().slice(0,10); }
+
+function runStateMigrations() {
+  if (!state.logs) state.logs = {};
+  if (!state.members) state.members = [];
+  if (!state.pin || /^\d+$/.test(state.pin)) state.pin = DEFAULT_PATTERN;
+  if (state.members) {
+    state.members.forEach(m => {
+      if (m.weeklyGoal === undefined) m.weeklyGoal = (state.weeklyGoal !== undefined ? state.weeklyGoal : 20);
+      if (m.reward === undefined) m.reward = (state.reward !== undefined ? state.reward : "Movie night pick");
+      if (!m.smileyMultipliers) m.smileyMultipliers = state.smileyMultipliers ? state.smileyMultipliers.slice() : [0.5, 1, 1.5, 2, 2.5];
+      if (!m.choreCatalogByDay) {
+        const sourceList = m.choreCatalog || state.choreCatalog;
+        if (sourceList) {
+          const byDay = {};
+          for (let d = 0; d < 7; d++) byDay[d] = JSON.parse(JSON.stringify(sourceList));
+          m.choreCatalogByDay = byDay;
+        } else {
+          m.choreCatalogByDay = defaultChoreCatalogByDay();
+        }
+        delete m.choreCatalog;
+      }
+      if (!m.badCatalogByDay) {
+        const sourceBadList = m.badCatalog || state.badCatalog;
+        if (sourceBadList) {
+          const byDayBad = {};
+          for (let d = 0; d < 7; d++) byDayBad[d] = JSON.parse(JSON.stringify(sourceBadList));
+          m.badCatalogByDay = byDayBad;
+        } else {
+          m.badCatalogByDay = defaultBadCatalogByDay();
+        }
+        delete m.badCatalog;
+      }
+    });
+  }
+  delete state.weeklyGoal;
+  delete state.reward;
+  delete state.choreCatalog;
+  delete state.badCatalog;
+  delete state.smileyMultipliers;
+  if (state.logs) {
+    Object.keys(state.logs).forEach(key => {
+      const log = state.logs[key];
+      if (!log.chores) log.chores = {};
+      else if (Array.isArray(log.chores)) {
+        const obj = {}; log.chores.forEach(id => { obj[id] = (obj[id] || 0) + 1; }); log.chores = obj;
+      }
+      if (!log.bad) log.bad = {};
+      else if (Array.isArray(log.bad)) {
+        const obj = {}; log.bad.forEach(id => { obj[id] = (obj[id] || 0) + 1; }); log.bad = obj;
+      }
+    });
+  }
+}
+function showToast(msg) {
+  let el = document.getElementById('saveToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'saveToast';
+    el.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;z-index:60;opacity:0;transition:opacity 0.2s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+let saveDebounceTimer = null;
+let saveInFlight = false;
+let saveQueued = false;
+let localEditPending = false;
+let dataRef = null;
+let firstSyncResolve = null;
+let hasRenderedOnce = false;
+
+function saveState() {
+  localEditPending = true;
+  clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(flushSave, 450);
+}
+
+async function flushSave() {
+  if (!dataRef) return;
+  if (saveInFlight) { saveQueued = true; return; }
+  saveInFlight = true;
+  try {
+    await dataRef.set(state);
+    localEditPending = false;
+  } catch (e) {
+    console.warn('Cloud save failed', e);
+    showToast("Couldn't save just now — check your connection and try again.");
+  }
+  saveInFlight = false;
+  if (saveQueued) { saveQueued = false; saveDebounceTimer = setTimeout(flushSave, 450); }
+}
+
+function initCloudSync() {
+  if (typeof firebase === 'undefined' || !firebaseConfig || firebaseConfig.apiKey === 'PASTE_YOUR_API_KEY_HERE') {
+    console.warn('Firebase is not configured — data will not save or sync. See the firebaseConfig section near the top of the script.');
+    state = defaultState();
+    runStateMigrations();
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+    showToast('Cloud sync is not set up yet — changes will not be saved.');
+    return;
+  }
+  firebase.initializeApp(firebaseConfig);
+  dataRef = firebase.database().ref('chart_3468352f72228046d4a66352');
+  let hasSyncedOnce = false;
+  dataRef.on('value', (snapshot) => {
+    if (localEditPending || saveInFlight) return;
+    const val = snapshot.val();
+
+    let prevTotals = null;
+    if (hasSyncedOnce && state && state.members) {
+      prevTotals = {};
+      state.members.forEach(m => { prevTotals[m.id] = computeWeekPoints(m.id, weekOffset); });
+    }
+
+    state = val || defaultState();
+    runStateMigrations();
+
+    if (prevTotals) {
+      state.members.forEach(m => {
+        if (prevTotals[m.id] === undefined) return;
+        const newTotal = computeWeekPoints(m.id, weekOffset);
+        const diff = newTotal - prevTotals[m.id];
+        if (Math.abs(diff) >= 0.05) {
+          setTimeout(() => triggerStarFeedback(m.id, diff), 0);
+        }
+      });
+    }
+    hasSyncedOnce = true;
+
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+  }, (error) => {
+    console.warn('Cloud sync error', error);
+    if (!state) { state = defaultState(); runStateMigrations(); }
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+    showToast("Couldn't connect to sync — check your connection.");
+  });
+}
+
+function logKey(memberId, day, offset) {
+  return memberId + ':' + weekKey(offset === undefined ? weekOffset : offset) + ':' + day;
+}
+function getLog(memberId, day, offset) {
+  if (!state.logs) state.logs = {};
+  const key = logKey(memberId, day, offset);
+  if (!state.logs[key]) state.logs[key] = { smiley: null, chores: {}, bad: {} };
+  const log = state.logs[key];
+  if (!log.chores) log.chores = {};
+  else if (Array.isArray(log.chores)) {
+    const obj = {}; log.chores.forEach(id => { obj[id] = 1; }); log.chores = obj;
+  }
+  if (!log.bad) log.bad = {};
+  else if (Array.isArray(log.bad)) {
+    const obj = {}; log.bad.forEach(id => { obj[id] = 1; }); log.bad = obj;
+  }
+  return log;
+}
+
+function spawnStars(memberId, direction, count) {
+  const block = document.querySelector('.jar-block[data-member="' + memberId + '"]');
+  if (!block) return;
+  const visual = block.querySelector('.jar-visual') || block;
+  const svg = block.querySelector('.jar-svg');
+  if (svg) {
+    svg.classList.remove('tip', 'bounce');
+    void svg.offsetWidth;
+    svg.classList.add(direction === 'in' ? 'bounce' : 'tip');
+    setTimeout(() => svg.classList.remove('tip', 'bounce'), 700);
+  }
+  const lid = document.getElementById('lid-' + memberId);
+  if (lid) {
+    lid.classList.remove('pop');
+    void lid.getBoundingClientRect();
+    lid.classList.add('pop');
+    setTimeout(() => lid.classList.remove('pop'), 750);
+  }
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const star = document.createElement('span');
+      star.className = 'star-particle ' + (direction === 'in' ? 'fly-in' : 'tip-out');
+      star.textContent = '⭐';
+      star.style.setProperty('--sx', (Math.random() * 50 - 25) + 'px');
+      visual.appendChild(star);
+      star.addEventListener('animationend', () => star.remove());
+    }, i * 90);
+  }
+}
+function triggerStarFeedback(memberId, pointsDelta) {
+  const rounded = Math.round(pointsDelta * 10) / 10;
+  if (!rounded) return;
+  const count = Math.min(4, Math.max(1, Math.round(Math.abs(rounded))));
+  spawnStars(memberId, rounded > 0 ? 'in' : 'out', count);
+}
+
+function setSmiley(memberId, day, value) {
+  const before = computeDayPoints(memberId, day);
+  const log = getLog(memberId, day);
+  log.smiley = (log.smiley === value) ? null : value;
+  const after = computeDayPoints(memberId, day);
+  saveState(); render();
+  triggerStarFeedback(memberId, after - before);
+}
+function adjustChore(memberId, day, choreId, delta) {
+  const before = computeDayPoints(memberId, day);
+  const log = getLog(memberId, day);
+  const current = log.chores[choreId] || 0;
+  const next = Math.max(0, current + delta);
+  if (next === 0) delete log.chores[choreId]; else log.chores[choreId] = next;
+  const after = computeDayPoints(memberId, day);
+  saveState(); render();
+  triggerStarFeedback(memberId, after - before);
+}
+function adjustBad(memberId, day, badId, delta) {
+  const before = computeDayPoints(memberId, day);
+  const log = getLog(memberId, day);
+  const current = log.bad[badId] || 0;
+  const next = Math.max(0, current + delta);
+  if (next === 0) delete log.bad[badId]; else log.bad[badId] = next;
+  const after = computeDayPoints(memberId, day);
+  saveState(); render();
+  triggerStarFeedback(memberId, after - before);
+}
+
+function computeDayPoints(memberId, day, offset) {
+  const member = getMember(memberId);
+  if (!member) return 0;
+  const key = logKey(memberId, day, offset);
+  const log = state.logs ? state.logs[key] : null;
+  if (!log) return 0;
+  let choreTotal = 0;
+  const dayChores = (member.choreCatalogByDay && member.choreCatalogByDay[day]) || [];
+  const logChores = log.chores || {};
+  Object.keys(logChores).forEach(cid => {
+    const c = dayChores.find(x => x.id === cid);
+    if (c) choreTotal += c.points * logChores[cid];
+  });
+  let badTotal = 0;
+  const dayBad = (member.badCatalogByDay && member.badCatalogByDay[day]) || [];
+  const logBad = log.bad || {};
+  Object.keys(logBad).forEach(bid => {
+    const b = dayBad.find(x => x.id === bid);
+    if (b) badTotal += b.points * logBad[bid];
+  });
+  const multiplier = log.smiley ? member.smileyMultipliers[log.smiley - 1] : 1;
+  const total = (choreTotal * multiplier) - badTotal;
+  return Math.round(total * 10) / 10;
+}
+function computeWeekPoints(memberId, offset) {
+  let total = 0;
+  for (let d = 0; d < 7; d++) total += computeDayPoints(memberId, d, offset);
+  return total;
+}
+
+function addMember() {
+  const input = document.getElementById('newMemberName');
+  const name = input.value.trim();
+  if (!name) return;
+  const color = COLORS[state.members.length % COLORS.length];
+  state.members.push(Object.assign({ id: uid(), name, color }, defaultMemberExtras()));
+  input.value = '';
+  saveState(); render();
+}
+function removeMember(id) {
+  state.members = state.members.filter(m => m.id !== id);
+  if (activeMemberId === id) activeMemberId = state.members.length ? state.members[0].id : null;
+  if (settingsMemberId === id) settingsMemberId = state.members.length ? state.members[0].id : null;
+  saveState(); render();
+}
+function addChore() {
+  const member = getMember(settingsMemberId);
+  if (!member) return;
+  const nameInput = document.getElementById('newChoreName');
+  const icon = document.getElementById('newChoreIcon').value;
+  const pts = parseInt(document.getElementById('newChorePoints').value) || 1;
+  const name = nameInput.value.trim();
+  if (!name) return;
+  if (!member.choreCatalogByDay[settingsChoreDay]) member.choreCatalogByDay[settingsChoreDay] = [];
+  member.choreCatalogByDay[settingsChoreDay].push({ id: uid(), name, icon, points: pts });
+  nameInput.value = '';
+  saveState(); render();
+}
+function removeChore(id) {
+  const member = getMember(settingsMemberId);
+  if (!member) return;
+  member.choreCatalogByDay[settingsChoreDay] = (member.choreCatalogByDay[settingsChoreDay] || []).filter(c => c.id !== id);
+  saveState(); render();
+}
+function addBad() {
+  const member = getMember(settingsMemberId);
+  if (!member) return;
+  const nameInput = document.getElementById('newBadName');
+  const icon = document.getElementById('newBadIcon').value;
+  const pts = parseInt(document.getElementById('newBadPoints').value) || 1;
+  const name = nameInput.value.trim();
+  if (!name) return;
+  if (!member.badCatalogByDay[settingsChoreDay]) member.badCatalogByDay[settingsChoreDay] = [];
+  member.badCatalogByDay[settingsChoreDay].push({ id: uid(), name, icon, points: pts });
+  nameInput.value = '';
+  saveState(); render();
+}
+function removeBad(id) {
+  const member = getMember(settingsMemberId);
+  if (!member) return;
+  member.badCatalogByDay[settingsChoreDay] = (member.badCatalogByDay[settingsChoreDay] || []).filter(b => b.id !== id);
+  saveState(); render();
+}
+function copyItemToAllDays(type, itemId) {
+  const member = getMember(settingsMemberId);
+  if (!member) return;
+  const catalogByDay = type === 'chore' ? member.choreCatalogByDay : member.badCatalogByDay;
+  const source = (catalogByDay[settingsChoreDay] || []).find(x => x.id === itemId);
+  if (!source) return;
+  for (let d = 0; d < 7; d++) {
+    if (d === settingsChoreDay) continue;
+    if (!catalogByDay[d]) catalogByDay[d] = [];
+    const alreadyThere = catalogByDay[d].some(x => x.name === source.name && x.icon === source.icon && x.points === source.points);
+    if (!alreadyThere) catalogByDay[d].push({ id: uid(), name: source.name, icon: source.icon, points: source.points });
+  }
+  saveState(); render();
+  showToast('"' + source.name + '" copied to every day');
+}
+
+function jarSkeleton(m) {
+  const clipId = 'clip-' + m.id;
+  let ticks = '';
+  for (let k = 1; k <= 6; k++) {
+    const ty = 96 - 76 * k / 7;
+    ticks += '<line x1="7" y1="' + ty.toFixed(1) + '" x2="12" y2="' + ty.toFixed(1) + '" stroke="#D9D0BC" stroke-width="1"/>';
+    ticks += '<line x1="58" y1="' + ty.toFixed(1) + '" x2="63" y2="' + ty.toFixed(1) + '" stroke="#D9D0BC" stroke-width="1"/>';
+  }
+  return '<div class="jar-block" data-member="' + m.id + '">' +
+    '<div class="pace-badge" id="pace-badge-' + m.id + '"></div>' +
+    '<div class="jar-row">' +
+      '<div class="jar-visual">' +
+        '<svg class="jar-svg" viewBox="0 0 70 100">' +
+          '<defs><clipPath id="' + clipId + '"><rect x="10" y="20" width="50" height="76" rx="8"/></clipPath></defs>' +
+          '<rect x="10" y="20" width="50" height="76" rx="8" fill="#F4F0E6" stroke="#D9D0BC" stroke-width="2"/>' +
+          '<rect class="jar-lid" id="lid-' + m.id + '" x="6" y="10" width="58" height="12" rx="4" fill="#D9D0BC"/>' +
+          '<g clip-path="url(#' + clipId + ')">' +
+            '<g class="jar-liquid" id="liquid-' + m.id + '">' +
+              '<g class="jar-wave-inner">' +
+                '<rect x="-10" y="20" width="90" height="200" fill="#F0B429"/>' +
+                '<path d="M-10,20 q6,-3 12,0 t12,0 t12,0 t12,0 t12,0 t12,0 t12,0 v6 h-90 z" fill="#F0B429" opacity="0.5"/>' +
+              '</g>' +
+            '</g>' +
+          '</g>' +
+          ticks +
+          '<line id="pace-target-' + m.id + '" x1="9" y1="20" x2="61" y2="20" stroke="#2E2A24" stroke-width="1.2" stroke-dasharray="2.5,2" opacity="0.5"/>' +
+          '<rect x="10" y="20" width="50" height="76" rx="8" fill="none" stroke="#D9D0BC" stroke-width="2"/>' +
+        '</svg>' +
+      '</div>' +
+      '<div class="jar-info">' +
+        '<div class="jar-name">' + escapeHtml(m.name) + '</div>' +
+        '<div class="jar-pct" id="pct-' + m.id + '"></div>' +
+        '<div class="jar-encourage" id="encourage-' + m.id + '"></div>' +
+        '<div class="reward-banner" id="reward-' + m.id + '" style="display:none;"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="day-strip" id="strip-' + m.id + '"></div>' +
+  '</div>';
+}
+
+let previouslyEarned = {};
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+const ENCOURAGEMENT = {
+  start: [
+    "Let's get started!", "Ready when you are!", "Time to fill that jar!",
+    "Every star counts!", "You've got this!", "First star's waiting!"
+  ],
+  low: [
+    "Keep going!", "Nice start!", "Building momentum!", "On your way!",
+    "Small steps count!", "You're moving up!"
+  ],
+  mid: [
+    "Great progress!", "You're on track!", "Halfway there!", "Looking good!",
+    "Keep it up!", "Solid effort!"
+  ],
+  high: [
+    "So close now!", "Almost there!", "Final stretch!", "You're crushing it!",
+    "Nearly full!", "Keep pushing!"
+  ],
+  full: [
+    "Amazing! You did it!", "Jar is full!", "Superstar!", "You earned it!",
+    "Incredible work!", "Legend status!"
+  ]
+};
+let encouragementCache = {};
+function tierForPct(pct) {
+  if (pct >= 1) return 'full';
+  if (pct >= 0.7) return 'high';
+  if (pct >= 0.4) return 'mid';
+  if (pct > 0) return 'low';
+  return 'start';
+}
+function getEncouragement(memberId, pct) {
+  const tier = tierForPct(pct);
+  const cached = encouragementCache[memberId];
+  if (cached && cached.tier === tier) return cached.message;
+  const list = ENCOURAGEMENT[tier];
+  const message = list[Math.floor(Math.random() * list.length)];
+  encouragementCache[memberId] = { tier, message };
+  return message;
+}
+
+function paceStatus(memberId) {
+  const member = getMember(memberId);
+  const goal = member.weeklyGoal || 0;
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  let cumulative = 0;
+  for (let d = 0; d <= todayIdx; d++) cumulative += computeDayPoints(memberId, d, weekOffset);
+  const actualToday = Math.max(0, cumulative);
+  const expectedToday = goal * (todayIdx + 1) / 7;
+  let statusClass, badgeEmoji;
+  if (goal <= 0) {
+    statusClass = 'neutral'; badgeEmoji = '';
+  } else if (actualToday >= expectedToday + Math.max(1, goal * 0.05)) {
+    statusClass = 'ahead'; badgeEmoji = '🚀';
+  } else if (actualToday <= expectedToday - Math.max(1, goal * 0.1)) {
+    statusClass = 'building'; badgeEmoji = '🐢';
+  } else {
+    statusClass = 'ontrack'; badgeEmoji = '✅';
+  }
+  return { statusClass, badgeEmoji, actualToday, expectedToday };
+}
+
+function renderJars() {
+  const jars = document.getElementById('jars');
+  const sig = state.members.map(m => m.id + ':' + m.name + ':' + m.color).join('|');
+  if (jars.dataset.sig !== sig) {
+    jars.dataset.sig = sig;
+    jars.innerHTML = state.members.length === 0
+      ? '<p class="empty">Add family members in settings to get started.</p>'
+      : state.members.map(m => jarSkeleton(m)).join('');
+  }
+
+  state.members.forEach(m => {
+    const total = computeWeekPoints(m.id, weekOffset);
+    const net = Math.max(0, total);
+    const pct = m.weeklyGoal > 0 ? Math.min(1, net / m.weeklyGoal) : 0;
+    const earned = total >= m.weeklyGoal && m.weeklyGoal > 0;
+    const offset = Math.round(76 * (1 - pct));
+
+    const liquid = document.getElementById('liquid-' + m.id);
+    if (liquid) liquid.style.transform = 'translateY(' + offset + 'px)';
+
+    const pctEl = document.getElementById('pct-' + m.id);
+    if (pctEl) pctEl.textContent = Math.round(pct * 100) + '%';
+
+    const encourageEl = document.getElementById('encourage-' + m.id);
+    if (encourageEl) encourageEl.textContent = getEncouragement(m.id, pct);
+
+    const todayIdxForPace = (new Date().getDay() + 6) % 7;
+    const targetFrac = (todayIdxForPace + 1) / 7;
+    const targetY = (96 - 76 * targetFrac).toFixed(1);
+    const targetLine = document.getElementById('pace-target-' + m.id);
+    if (targetLine) { targetLine.setAttribute('y1', targetY); targetLine.setAttribute('y2', targetY); }
+
+    const badgeEl = document.getElementById('pace-badge-' + m.id);
+    if (badgeEl) badgeEl.textContent = paceStatus(m.id).badgeEmoji;
+
+    const block = document.querySelector('.jar-block[data-member="' + m.id + '"]');
+    if (block) block.classList.toggle('full', earned);
+
+    const rewardEl = document.getElementById('reward-' + m.id);
+    if (rewardEl) {
+      if (earned) {
+        const justEarned = !previouslyEarned[m.id];
+        rewardEl.style.display = 'block';
+        rewardEl.textContent = '🎉 Reward earned: ' + m.reward;
+        rewardEl.classList.toggle('pop', justEarned);
+      } else {
+        rewardEl.style.display = 'none';
+      }
+    }
+    previouslyEarned[m.id] = earned;
+
+    let strip = '';
+    const todayIdxNow = (new Date().getDay() + 6) % 7;
+    for (let d = 0; d < 7; d++) {
+      const key = logKey(m.id, d, weekOffset);
+      const log = state.logs ? state.logs[key] : null;
+      const dayPts = computeDayPoints(m.id, d, weekOffset);
+      const hasLog = log && (log.smiley || Object.keys(log.chores || {}).length || Object.keys(log.bad || {}).length);
+      const cls = !hasLog ? 'empty' : (dayPts > 0 ? 'positive' : (dayPts < 0 ? 'negative' : 'neutral'));
+      const isToday = (d === todayIdxNow && weekOffset === 0) ? ' today' : '';
+      const emoji = (log && log.smiley) ? SMILEYS[log.smiley - 1] : '·';
+      const ptsLabel = hasLog ? (dayPts > 0 ? '+' + dayPts : dayPts) : '';
+      strip += '<div class="day-cell-mini ' + cls + isToday + '">' +
+        '<div class="dlabel">' + DAYS[d][0] + '</div>' +
+        '<div class="demoji">' + emoji + '</div>' +
+        '<div class="dpts">' + ptsLabel + '</div>' +
+      '</div>';
+    }
+    const stripEl = document.getElementById('strip-' + m.id);
+    if (stripEl) stripEl.innerHTML = strip;
+  });
+}
+
+function updateEditSubView() {
+  const logCard = document.getElementById('todaysLogCard');
+  const settingsCard = document.getElementById('settingsCard');
+  const tabLog = document.getElementById('editTabLog');
+  const tabSettings = document.getElementById('editTabSettings');
+  if (!logCard || !settingsCard || !tabLog || !tabSettings) return;
+  logCard.style.display = editSubView === 'log' ? 'block' : 'none';
+  settingsCard.style.display = editSubView === 'settings' ? 'block' : 'none';
+  [tabLog, tabSettings].forEach(btn => { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; });
+  const activeTab = editSubView === 'log' ? tabLog : tabSettings;
+  activeTab.style.background = 'var(--sage)';
+  activeTab.style.borderColor = 'var(--sage)';
+  activeTab.style.color = '#fff';
+}
+
+function render() {
+  if (!state) return;
+  document.getElementById('familyName').value = state.familyName;
+
+  const sundayWrap = document.getElementById('sundayResetWrap');
+  if (sundayWrap) sundayWrap.style.display = (new Date().getDay() === 0) ? 'block' : 'none';
+
+  renderJars();
+  updateEditSubView();
+
+  const memberTabs = document.getElementById('memberTabs');
+  memberTabs.innerHTML = '';
+  state.members.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'member-tab' + (activeMemberId === m.id ? ' active' : '');
+    if (activeMemberId === m.id) btn.style.background = m.color;
+    if (activeMemberId === m.id) btn.style.borderColor = m.color;
+    btn.textContent = m.name;
+    btn.addEventListener('click', () => { activeMemberId = m.id; render(); });
+    memberTabs.appendChild(btn);
+  });
+
+  const todayIdxNow = (new Date().getDay() + 6) % 7;
+  const fullDayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dayLabelEl = document.getElementById('dayLabel');
+  dayLabelEl.textContent = fullDayNames[activeDay] + (activeDay === todayIdxNow ? ' (today)' : '');
+  document.getElementById('prevDayBtn').disabled = activeDay <= 0;
+  document.getElementById('gotoTodayBtn').style.display = (activeDay === todayIdxNow) ? 'none' : 'inline-block';
+  const nextDayBtn = document.getElementById('nextDayBtn');
+  nextDayBtn.disabled = false;
+  if (activeDay >= 6) {
+    nextDayBtn.textContent = '✨ Start a new week →';
+    nextDayBtn.classList.add('special');
+  } else {
+    nextDayBtn.textContent = 'Advance to next day →';
+    nextDayBtn.classList.remove('special');
+  }
+
+  const smileyRow = document.getElementById('smileyRow');
+  const todayPointsEl = document.getElementById('todayPoints');
+  const dailyLists = document.getElementById('dailyLists');
+  if (!activeMemberId) {
+    smileyRow.innerHTML = '<p class="empty">Add a family member first.</p>';
+    dailyLists.innerHTML = '';
+    todayPointsEl.textContent = '';
+  } else {
+    const log = getLog(activeMemberId, activeDay);
+    const activeMember = getMember(activeMemberId);
+    let smileyHtml = '<div class="smiley-row">';
+    SMILEYS.forEach((s, i) => {
+      const val = i + 1;
+      smileyHtml += '<button class="smiley-btn ' + (log.smiley === val ? 'selected' : '') + '" data-val="' + val + '">' + s + '</button>';
+    });
+    smileyHtml += '</div>';
+    smileyRow.innerHTML = smileyHtml;
+    smileyRow.querySelectorAll('.smiley-btn').forEach(btn => {
+      btn.addEventListener('click', () => setSmiley(activeMemberId, activeDay, parseInt(btn.dataset.val)));
+    });
+
+    let choresHtml = '<div class="section-title"><h3 style="font-size:13px;">Positive behaviors</h3></div><div class="check-list">';
+    const activeDayChores = (activeMember.choreCatalogByDay && activeMember.choreCatalogByDay[activeDay]) || [];
+    activeDayChores.forEach(c => {
+      const count = log.chores[c.id] || 0;
+      choresHtml += '<div class="check-item good ' + (count>0?'checked':'') + '">' +
+        '<span class="check-tap" data-type="chore" data-id="' + c.id + '">' + c.icon + ' ' + escapeHtml(c.name) + '</span>' +
+        '<span class="stepper">' +
+          '<button class="step-btn" data-type="chore" data-id="' + c.id + '" data-delta="-1">−</button>' +
+          '<span class="step-count">' + count + '</span>' +
+          '<button class="step-btn" data-type="chore" data-id="' + c.id + '" data-delta="1">+</button>' +
+        '</span>' +
+        '<span class="pts">+' + c.points + ' each</span></div>';
+    });
+    choresHtml += '</div>';
+    if (activeDayChores.length === 0) choresHtml = '<p class="empty">No chores set up for this day yet — add some in settings.</p>';
+
+
+    let badHtml = '<div class="section-title" style="margin-top:14px;"><h3 style="font-size:13px;">Negative behaviors</h3></div><div class="check-list">';
+    const activeDayBad = (activeMember.badCatalogByDay && activeMember.badCatalogByDay[activeDay]) || [];
+    activeDayBad.forEach(b => {
+      const count = log.bad[b.id] || 0;
+      badHtml += '<div class="check-item bad ' + (count>0?'checked':'') + '">' +
+        '<span class="check-tap" data-type="bad" data-id="' + b.id + '">' + b.icon + ' ' + escapeHtml(b.name) + '</span>' +
+        '<span class="stepper">' +
+          '<button class="step-btn" data-type="bad" data-id="' + b.id + '" data-delta="-1">−</button>' +
+          '<span class="step-count">' + count + '</span>' +
+          '<button class="step-btn" data-type="bad" data-id="' + b.id + '" data-delta="1">+</button>' +
+        '</span>' +
+        '<span class="pts">-' + b.points + ' each</span></div>';
+    });
+    badHtml += '</div>';
+    if (activeDayBad.length === 0) badHtml = '';
+
+    dailyLists.innerHTML = choresHtml + badHtml;
+    dailyLists.querySelectorAll('.check-tap').forEach(el => {
+      el.addEventListener('click', () => {
+        if (el.dataset.type === 'chore') adjustChore(activeMemberId, activeDay, el.dataset.id, 1);
+        else adjustBad(activeMemberId, activeDay, el.dataset.id, 1);
+      });
+    });
+    dailyLists.querySelectorAll('.step-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const delta = parseInt(btn.dataset.delta);
+        if (btn.dataset.type === 'chore') adjustChore(activeMemberId, activeDay, btn.dataset.id, delta);
+        else adjustBad(activeMemberId, activeDay, btn.dataset.id, delta);
+      });
+    });
+
+    todayPointsEl.textContent = computeDayPoints(activeMemberId, activeDay) + ' points for ' + DAYS[activeDay];
+  }
+
+  if (!settingsMemberId || !getMember(settingsMemberId)) {
+    settingsMemberId = state.members.length ? state.members[0].id : null;
+  }
+
+  const settingsTabs = document.getElementById('settingsMemberTabs');
+  settingsTabs.innerHTML = '';
+  state.members.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'member-tab' + (settingsMemberId === m.id ? ' active' : '');
+    if (settingsMemberId === m.id) { btn.style.background = m.color; btn.style.borderColor = m.color; }
+    btn.textContent = m.name;
+    btn.addEventListener('click', () => { settingsMemberId = m.id; render(); });
+    settingsTabs.appendChild(btn);
+  });
+  if (state.members.length === 0) settingsTabs.innerHTML = '<p class="empty">Add a family member below first.</p>';
+
+  const settingsMember = getMember(settingsMemberId);
+  const weeklyGoalInput = document.getElementById('weeklyGoal');
+  const rewardInput = document.getElementById('rewardText');
+  const smileyConfig = document.getElementById('smileyConfig');
+  const choreDayTabs = document.getElementById('choreDayTabs');
+  const choreCatalogList = document.getElementById('choreCatalogList');
+  const badCatalogList = document.getElementById('badCatalogList');
+
+  if (!settingsMember) {
+    weeklyGoalInput.value = '';
+    rewardInput.value = '';
+    smileyConfig.innerHTML = '';
+    choreDayTabs.innerHTML = '';
+    choreCatalogList.innerHTML = '<p class="empty">Add a family member first.</p>';
+    badCatalogList.innerHTML = '';
+  } else {
+    weeklyGoalInput.value = settingsMember.weeklyGoal;
+    rewardInput.value = settingsMember.reward;
+
+    smileyConfig.innerHTML = settingsMember.smileyMultipliers.map((v,i) =>
+      '<div><label class="settings-label">' + SMILEYS[i] + '</label><input type="number" step="0.5" class="smiley-pt" data-idx="' + i + '" value="' + v + '" style="width:100%;"></div>'
+    ).join('');
+    smileyConfig.querySelectorAll('.smiley-pt').forEach(inp => {
+      inp.addEventListener('change', (e) => {
+        settingsMember.smileyMultipliers[parseInt(e.target.dataset.idx)] = parseFloat(e.target.value) || 0;
+        saveState(); render();
+      });
+    });
+
+    if (settingsChoreDay === null) settingsChoreDay = (new Date().getDay() + 6) % 7;
+    choreDayTabs.innerHTML = '';
+    DAYS.forEach((d, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'member-tab' + (settingsChoreDay === i ? ' active' : '');
+      if (settingsChoreDay === i) { btn.style.background = 'var(--mustard)'; btn.style.borderColor = 'var(--mustard)'; btn.style.color = '#fff'; }
+      btn.style.padding = '6px 12px';
+      btn.style.fontSize = '13px';
+      btn.textContent = d;
+      btn.addEventListener('click', () => { settingsChoreDay = i; render(); });
+      choreDayTabs.appendChild(btn);
+    });
+
+    if (!settingsMember.choreCatalogByDay[settingsChoreDay]) settingsMember.choreCatalogByDay[settingsChoreDay] = [];
+    choreCatalogList.innerHTML = '';
+    settingsMember.choreCatalogByDay[settingsChoreDay].forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'catalog-row';
+      row.innerHTML = c.icon + ' ' + escapeHtml(c.name) + '<span class="pts">+' + c.points + '</span>' +
+        '<button class="copy-btn" data-id="' + c.id + '" title="Copy to all days">📋</button>' +
+        '<button class="remove-btn" data-id="' + c.id + '" title="Remove">×</button>';
+      choreCatalogList.appendChild(row);
+    });
+    if (settingsMember.choreCatalogByDay[settingsChoreDay].length === 0) choreCatalogList.innerHTML = '<p class="empty">No chores set for ' + DAYS[settingsChoreDay] + ' yet.</p>';
+    choreCatalogList.querySelectorAll('.copy-btn').forEach(btn => btn.addEventListener('click', () => copyItemToAllDays('chore', btn.dataset.id)));
+    choreCatalogList.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => removeChore(btn.dataset.id)));
+
+    if (!settingsMember.badCatalogByDay[settingsChoreDay]) settingsMember.badCatalogByDay[settingsChoreDay] = [];
+    badCatalogList.innerHTML = '';
+    settingsMember.badCatalogByDay[settingsChoreDay].forEach(b => {
+      const row = document.createElement('div');
+      row.className = 'catalog-row';
+      row.innerHTML = b.icon + ' ' + escapeHtml(b.name) + '<span class="pts">-' + b.points + '</span>' +
+        '<button class="copy-btn" data-id="' + b.id + '" title="Copy to all days">📋</button>' +
+        '<button class="remove-btn" data-id="' + b.id + '" title="Remove">×</button>';
+      badCatalogList.appendChild(row);
+    });
+    if (settingsMember.badCatalogByDay[settingsChoreDay].length === 0) badCatalogList.innerHTML = '<p class="empty">Nothing set for ' + DAYS[settingsChoreDay] + ' yet.</p>';
+    badCatalogList.querySelectorAll('.copy-btn').forEach(btn => btn.addEventListener('click', () => copyItemToAllDays('bad', btn.dataset.id)));
+    badCatalogList.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => removeBad(btn.dataset.id)));
+  }
+
+  const memberPills = document.getElementById('memberPills');
+  memberPills.innerHTML = '';
+  state.members.forEach(m => {
+    const pill = document.createElement('div');
+    pill.className = 'member-pill';
+    pill.style.borderColor = m.color;
+    pill.innerHTML = '<span style="width:10px;height:10px;border-radius:50%;background:' + m.color + ';display:inline-block;"></span>' + escapeHtml(m.name) + '<button data-id="' + m.id + '">×</button>';
+    memberPills.appendChild(pill);
+  });
+  if (state.members.length === 0) memberPills.innerHTML = '<p class="empty">No one added yet.</p>';
+  memberPills.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => removeMember(btn.dataset.id)));
+}
+
+document.getElementById('prevDayBtn').addEventListener('click', () => {
+  activeDay = Math.max(0, activeDay - 1);
+  render();
+});
+document.getElementById('gotoTodayBtn').addEventListener('click', () => {
+  activeDay = (new Date().getDay() + 6) % 7;
+  render();
+});
+document.getElementById('nextDayBtn').addEventListener('click', () => {
+  if (activeDay >= 6) {
+    showConfirm('Start a new week?', 'This will reset all points and daily logs for everyone.', () => {
+      activeDay = 0;
+      performWeeklyReset();
+    });
+    return;
+  }
+  activeDay = Math.min(6, activeDay + 1);
+  render();
+});
+document.getElementById('editTabLog').addEventListener('click', () => { editSubView = 'log'; updateEditSubView(); });
+document.getElementById('editTabSettings').addEventListener('click', () => { editSubView = 'settings'; updateEditSubView(); });
+document.getElementById('sundayResetBtn').addEventListener('click', requestWeeklyReset);
+document.getElementById('confirmYesBtn').addEventListener('click', () => {
+  const cb = confirmCallback;
+  hideConfirm();
+  if (cb) cb();
+});
+document.getElementById('confirmCancelBtn').addEventListener('click', hideConfirm);
+document.getElementById('pinCancel').addEventListener('click', hidePinModal);
+document.getElementById('familyName').addEventListener('change', (e) => { state.familyName = e.target.value; saveState(); });
+document.getElementById('addMemberBtn').addEventListener('click', addMember);
+document.getElementById('newMemberName').addEventListener('keydown', (e) => { if (e.key === 'Enter') addMember(); });
+document.getElementById('addChoreBtn').addEventListener('click', addChore);
+document.getElementById('newChoreName').addEventListener('keydown', (e) => { if (e.key === 'Enter') addChore(); });
+document.getElementById('addBadBtn').addEventListener('click', addBad);
+document.getElementById('newBadName').addEventListener('keydown', (e) => { if (e.key === 'Enter') addBad(); });
+document.getElementById('weeklyGoal').addEventListener('change', (e) => {
+  const m = getMember(settingsMemberId); if (!m) return;
+  m.weeklyGoal = parseInt(e.target.value) || 0; saveState(); render();
+});
+document.getElementById('rewardText').addEventListener('change', (e) => {
+  const m = getMember(settingsMemberId); if (!m) return;
+  m.reward = e.target.value; saveState(); render();
+});
+let settingsPatternInitialized = false;
+function initSettingsPattern() {
+  if (settingsPatternInitialized) return;
+  settingsPatternInitialized = true;
+  const svg = document.getElementById('patternSettingSvg');
+  attachPatternHandlers(svg, (points, reset) => {
+    if (points.length < 4) {
+      showToast('Use at least 4 dots for the pattern.');
+      reset();
+      return;
+    }
+    state.pin = points.join(',');
+    saveState();
+    showToast('Parent mode pattern updated.');
+    setTimeout(reset, 500);
+  });
+}
+initSettingsPattern();
+document.getElementById('resetBtn').addEventListener('click', () => {
+  showConfirm('Reset all chart data?', 'This cannot be undone.', async () => {
+    state = defaultState();
+    clearTimeout(saveDebounceTimer);
+    await flushSave();
+    weekOffset = 0;
+    activeMemberId = state.members.length ? state.members[0].id : null;
+    settingsMemberId = state.members.length ? state.members[0].id : null;
+    render();
+  });
+});
+
+stateReadyPromise = new Promise((resolve) => { firstSyncResolve = resolve; });
+stateReadyPromise.then(() => {
+  if (!hasRenderedOnce) { hasRenderedOnce = true; enterMode('view'); }
+});
+initCloudSync();
+</script>
+</body>
+</html>
