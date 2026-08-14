@@ -1068,6 +1068,28 @@ function playHappySound() {
     console.warn('Could not play sound', e);
   }
 }
+function playAdvanceDaySound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(392, now);
+    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.25);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.15, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  } catch (e) {
+    console.warn('Could not play sound', e);
+  }
+}
 function playClickSound() {
   try {
     const ctx = getAudioCtx();
@@ -1092,7 +1114,7 @@ function playClickSound() {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
-  if (btn.classList.contains('step-btn') || btn.classList.contains('smiley-btn')) return;
+  if (btn.classList.contains('step-btn') || btn.classList.contains('smiley-btn') || btn.id === 'nextDayBtn') return;
   playClickSound();
 });
 
@@ -1749,6 +1771,7 @@ document.getElementById('gotoTodayBtn').addEventListener('click', () => {
   render();
 });
 document.getElementById('nextDayBtn').addEventListener('click', () => {
+  playAdvanceDaySound();
   if (activeDay >= 6) {
     showConfirm('Start a new week?', 'This will reset all points and daily logs for everyone.', () => {
       activeDay = 0;
