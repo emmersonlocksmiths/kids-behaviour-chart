@@ -101,11 +101,6 @@
     50% { filter: drop-shadow(0 0 7px rgba(227,167,47,0.8)); }
   }
   .jar-liquid { transition: transform 0.9s cubic-bezier(.4,0,.2,1); }
-  .jar-wave-inner { animation: waveMove 2.6s linear infinite; }
-  @keyframes waveMove {
-    from { transform: translateX(0); }
-    to { transform: translateX(-24px); }
-  }
   .reward-banner.pop { animation: popIn 0.45s cubic-bezier(.34,1.56,.64,1); }
   @keyframes popIn {
     from { transform: scale(0.4); opacity: 0; }
@@ -117,8 +112,14 @@
   .jar-encourage { font-size: 13px; font-weight: 700; color: var(--sage); margin-top: 3px; min-height: 16px; }
   .pace-badge { position: absolute; top: -2px; right: 4px; font-size: 24px; line-height: 1; }
   .reward-banner {
-    margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--mustard);
-    background: var(--mustard-light); border-radius: 8px; padding: 4px 6px;
+    margin-top: 8px; font-size: 15px; font-weight: 700; font-family: 'Fredoka', sans-serif;
+    color: #fff; background: var(--mustard); border-radius: 12px; padding: 8px 14px;
+    display: inline-block; box-shadow: 0 3px 0 #c68a1a;
+    animation: rewardShimmer 1.8s ease-in-out infinite;
+  }
+  @keyframes rewardShimmer {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.04); filter: brightness(1.15); }
   }
   .day-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
   .day-cell-mini {
@@ -315,10 +316,6 @@
         <label class="settings-label">Weekly goal (points)</label>
         <input type="number" id="weeklyGoal" style="width:100%;">
       </div>
-      <div>
-        <label class="settings-label">Reward</label>
-        <input type="text" id="rewardText" style="width:100%;" placeholder="e.g. Movie night pick">
-      </div>
     </div>
     <label class="settings-label">Behavior modifiers — point multiplier (sad to great)</label>
     <div class="settings-grid" id="smileyConfig"></div>
@@ -330,7 +327,7 @@
     <div class="section-title"><h3 style="font-size:14px;">Positive behaviors</h3></div>
     <div id="choreCatalogList"></div>
     <div class="add-row">
-      <input type="text" id="newChoreName" placeholder="Chore name">
+      <input type="text" id="newChoreName" placeholder="Behavior name">
       <select id="newChoreIcon">
         <option value="🧹">🧹</option><option value="🛏️">🛏️</option><option value="🧸">🧸</option>
         <option value="🐾">🐾</option><option value="🍽️">🍽️</option><option value="🌱">🌱</option>
@@ -369,12 +366,13 @@
     </div>
 
     <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Parent mode pattern</h3></div>
-    <p class="empty" style="margin-top:-6px;">Draw a new pattern below (at least 4 dots) to change it. It saves as soon as you lift your finger.</p>
+    <p class="empty" style="margin-top:-6px;">Draw a new pattern below (at least 4 dots), then draw it a second time to confirm before it saves.</p>
+    <p class="empty" id="patternSettingStatus" style="margin:2px 0 0; font-weight:700; color:var(--sage); min-height:14px;"></p>
     <svg id="patternSettingSvg" class="pattern-svg" viewBox="0 0 240 240" style="margin:0 auto;"></svg>
   </div>
 
   <div class="footer-row edit-only">
-    <button class="reset-link" id="resetBtn">Reset all chart data</button>
+    <button class="reset-link" id="resetBtn">Reset this week's points</button>
   </div>
 
 </div>
@@ -395,7 +393,7 @@ const firebaseConfig = {
 };
 // ===== END CLOUD SYNC SETUP =====
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const SMILEYS = ['😢','🙁','😐','🙂','😄'];
+const SMILEYS = ['😢','😐','😄'];
 const COLORS = ['#6E8B5D','#C97B63','#E3A72F','#4E7A8C','#A0669C','#B4553E'];
 
 let state = null;
@@ -443,7 +441,7 @@ function defaultMemberExtras() {
   return {
     weeklyGoal: 20,
     reward: "Movie night pick",
-    smileyMultipliers: [0.5, 1, 1.5, 2, 2.5],
+    smileyMultipliers: [0.5, 1, 2],
     choreCatalogByDay: defaultChoreCatalogByDay(),
     badCatalogByDay: defaultBadCatalogByDay()
   };
@@ -628,7 +626,13 @@ function runStateMigrations() {
     state.members.forEach(m => {
       if (m.weeklyGoal === undefined) m.weeklyGoal = (state.weeklyGoal !== undefined ? state.weeklyGoal : 20);
       if (m.reward === undefined) m.reward = (state.reward !== undefined ? state.reward : "Movie night pick");
-      if (!m.smileyMultipliers) m.smileyMultipliers = state.smileyMultipliers ? state.smileyMultipliers.slice() : [0.5, 1, 1.5, 2, 2.5];
+      if (!m.smileyMultipliers || m.smileyMultipliers.length !== 3) {
+        if (m.smileyMultipliers && m.smileyMultipliers.length === 5) {
+          m.smileyMultipliers = [m.smileyMultipliers[0], m.smileyMultipliers[2], m.smileyMultipliers[4]];
+        } else {
+          m.smileyMultipliers = state.smileyMultipliers ? state.smileyMultipliers.slice(0, 3) : [0.5, 1, 2];
+        }
+      }
       if (!m.choreCatalogByDay) {
         const sourceList = m.choreCatalog || state.choreCatalog;
         if (sourceList) {
@@ -669,8 +673,14 @@ function runStateMigrations() {
       else if (Array.isArray(log.bad)) {
         const obj = {}; log.bad.forEach(id => { obj[id] = (obj[id] || 0) + 1; }); log.bad = obj;
       }
+      if (!state.smileyScaleMigrated && log.smiley) {
+        if (log.smiley <= 2) log.smiley = 1;
+        else if (log.smiley === 3) log.smiley = 2;
+        else log.smiley = 3;
+      }
     });
   }
+  state.smileyScaleMigrated = true;
 }
 function showToast(msg) {
   let el = document.getElementById('saveToast');
@@ -783,9 +793,71 @@ function getLog(memberId, day, offset) {
   return log;
 }
 
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audioCtx = new AC();
+  }
+  return audioCtx;
+}
+function playAddSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const notes = [880, 1318.51];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const startTime = now + i * 0.08;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.22, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    });
+  } catch (e) {
+    console.warn('Could not play sound', e);
+  }
+}
+function playRemoveSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const notes = [523.25, 392];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const startTime = now + i * 0.09;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.16, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.45);
+    });
+  } catch (e) {
+    console.warn('Could not play sound', e);
+  }
+}
+
 function spawnStars(memberId, direction, count) {
   const block = document.querySelector('.jar-block[data-member="' + memberId + '"]');
   if (!block) return;
+  if (direction === 'in') playAddSound();
+  else playRemoveSound();
   const visual = block.querySelector('.jar-visual') || block;
   const svg = block.querySelector('.jar-svg');
   if (svg) {
@@ -1069,7 +1141,8 @@ function renderJars() {
   state.members.forEach(m => {
     const total = computeWeekPoints(m.id, weekOffset);
     const net = Math.max(0, total);
-    const pct = m.weeklyGoal > 0 ? Math.min(1, net / m.weeklyGoal) : 0;
+    const rawPct = m.weeklyGoal > 0 ? (net / m.weeklyGoal) : 0;
+    const pct = Math.min(1, rawPct);
     const earned = total >= m.weeklyGoal && m.weeklyGoal > 0;
     const offset = Math.round(76 * (1 - pct));
 
@@ -1077,7 +1150,7 @@ function renderJars() {
     if (liquid) liquid.style.transform = 'translateY(' + offset + 'px)';
 
     const pctEl = document.getElementById('pct-' + m.id);
-    if (pctEl) pctEl.textContent = Math.round(pct * 100) + '%';
+    if (pctEl) pctEl.textContent = Math.round(rawPct * 100) + '%';
 
     const encourageEl = document.getElementById('encourage-' + m.id);
     if (encourageEl) encourageEl.textContent = getEncouragement(m.id, pct);
@@ -1099,7 +1172,7 @@ function renderJars() {
       if (earned) {
         const justEarned = !previouslyEarned[m.id];
         rewardEl.style.display = 'block';
-        rewardEl.textContent = '🎉 Reward earned: ' + m.reward;
+        rewardEl.textContent = '🏆 Reward earned! 🎉';
         rewardEl.classList.toggle('pop', justEarned);
       } else {
         rewardEl.style.display = 'none';
@@ -1252,7 +1325,7 @@ function render() {
       });
     });
 
-    todayPointsEl.textContent = computeDayPoints(activeMemberId, activeDay) + ' points for ' + DAYS[activeDay];
+    todayPointsEl.textContent = computeDayPoints(activeMemberId, activeDay) + ' points for ' + fullDayNames[activeDay];
   }
 
   if (!settingsMemberId || !getMember(settingsMemberId)) {
@@ -1273,7 +1346,6 @@ function render() {
 
   const settingsMember = getMember(settingsMemberId);
   const weeklyGoalInput = document.getElementById('weeklyGoal');
-  const rewardInput = document.getElementById('rewardText');
   const smileyConfig = document.getElementById('smileyConfig');
   const choreDayTabs = document.getElementById('choreDayTabs');
   const choreCatalogList = document.getElementById('choreCatalogList');
@@ -1281,14 +1353,12 @@ function render() {
 
   if (!settingsMember) {
     weeklyGoalInput.value = '';
-    rewardInput.value = '';
     smileyConfig.innerHTML = '';
     choreDayTabs.innerHTML = '';
     choreCatalogList.innerHTML = '<p class="empty">Add a family member first.</p>';
     badCatalogList.innerHTML = '';
   } else {
     weeklyGoalInput.value = settingsMember.weeklyGoal;
-    rewardInput.value = settingsMember.reward;
 
     smileyConfig.innerHTML = settingsMember.smileyMultipliers.map((v,i) =>
       '<div><label class="settings-label">' + SMILEYS[i] + '</label><input type="number" step="0.5" class="smiley-pt" data-idx="' + i + '" value="' + v + '" style="width:100%;"></div>'
@@ -1395,37 +1465,49 @@ document.getElementById('weeklyGoal').addEventListener('change', (e) => {
   const m = getMember(settingsMemberId); if (!m) return;
   m.weeklyGoal = parseInt(e.target.value) || 0; saveState(); render();
 });
-document.getElementById('rewardText').addEventListener('change', (e) => {
-  const m = getMember(settingsMemberId); if (!m) return;
-  m.reward = e.target.value; saveState(); render();
-});
 let settingsPatternInitialized = false;
+let pendingNewPattern = null;
 function initSettingsPattern() {
   if (settingsPatternInitialized) return;
   settingsPatternInitialized = true;
   const svg = document.getElementById('patternSettingSvg');
+  const statusEl = document.getElementById('patternSettingStatus');
   attachPatternHandlers(svg, (points, reset) => {
     if (points.length < 4) {
       showToast('Use at least 4 dots for the pattern.');
+      pendingNewPattern = null;
+      if (statusEl) statusEl.textContent = '';
       reset();
       return;
     }
-    state.pin = points.join(',');
-    saveState();
-    showToast('Parent mode pattern updated.');
-    setTimeout(reset, 500);
+    const entered = points.join(',');
+    if (!pendingNewPattern) {
+      pendingNewPattern = entered;
+      if (statusEl) statusEl.textContent = 'Draw it one more time to confirm.';
+      showToast('Draw it again to confirm.');
+      setTimeout(reset, 400);
+    } else if (entered === pendingNewPattern) {
+      state.pin = entered;
+      saveState();
+      pendingNewPattern = null;
+      if (statusEl) statusEl.textContent = '';
+      showToast('Parent mode pattern updated.');
+      setTimeout(reset, 500);
+    } else {
+      pendingNewPattern = null;
+      if (statusEl) statusEl.textContent = '';
+      showToast("Patterns didn't match — try again from the start.");
+      svg.classList.remove('shake');
+      void svg.getBoundingClientRect();
+      svg.classList.add('shake');
+      setTimeout(() => { svg.classList.remove('shake'); reset(); }, 400);
+    }
   });
 }
 initSettingsPattern();
 document.getElementById('resetBtn').addEventListener('click', () => {
-  showConfirm('Reset all chart data?', 'This cannot be undone.', async () => {
-    state = defaultState();
-    clearTimeout(saveDebounceTimer);
-    await flushSave();
-    weekOffset = 0;
-    activeMemberId = state.members.length ? state.members[0].id : null;
-    settingsMemberId = state.members.length ? state.members[0].id : null;
-    render();
+  showConfirm("Reset this week's points?", "This clears everyone's logged points and daily mood picks. Your chores, behaviors, goals, rewards, and family stay exactly as set up.", () => {
+    performWeeklyReset();
   });
 });
 
