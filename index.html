@@ -1,19 +1,11 @@
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBYK1eNxHZfA1loH2N9DNSYg1amFPKG9vI",
-  authDomain: "kids-behaviour-chart-5fad9.firebaseapp.com",
-  databaseURL: "https://kids-behaviour-chart-5fad9-default-rtdb.firebaseio.com",
-  projectId: "kids-behaviour-chart-5fad9",
-  storageBucket: "kids-behaviour-chart-5fad9.firebasestorage.app",
-  messagingSenderId: "534434002870",
-  appId: "1:534434002870:web:253925e5713eaa1f9b7317",
-  measurementId: "G-8MQ8G2B16C"
-};<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Behavior Chart</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -238,6 +230,14 @@ const firebaseConfig = {
     width: 100%; font-size: 22px; text-align: center; letter-spacing: 6px; padding: 10px;
     border-radius: 8px; border: 1px solid var(--line); margin: 14px 0 6px;
   }
+  .pattern-svg { width: 220px; height: 220px; margin: 14px auto 6px; display: block; touch-action: none; user-select: none; }
+  .pattern-svg.shake { animation: patternShake 0.4s ease; }
+  @keyframes patternShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    50% { transform: translateX(8px); }
+    75% { transform: translateX(-5px); }
+  }
   .pin-error { font-size: 12px; color: var(--clay); min-height: 16px; margin-bottom: 8px; }
   .pin-actions { display: flex; gap: 8px; margin-top: 10px; }
   .pin-actions button { flex: 1; }
@@ -251,12 +251,11 @@ const firebaseConfig = {
 
 <div class="pin-overlay" id="pinOverlay">
   <div class="pin-card">
-    <h3>Enter code</h3>
-    <input type="password" inputmode="numeric" id="pinInput" maxlength="8" autocomplete="off">
+    <h3>Draw your pattern</h3>
+    <svg id="patternSvg" class="pattern-svg" viewBox="0 0 240 240"></svg>
     <div class="pin-error" id="pinError"></div>
     <div class="pin-actions">
       <button class="action" id="pinCancel" style="background:#fff;color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
-      <button class="action" id="pinSubmit">Unlock</button>
     </div>
   </div>
 </div>
@@ -283,7 +282,12 @@ const firebaseConfig = {
     <div class="jars" id="jars"></div>
   </div>
 
-  <div class="card edit-only">
+  <div class="pill-row edit-only" id="editTabBar" style="margin-bottom:4px;">
+    <button id="editTabLog" class="member-tab">Today's log</button>
+    <button id="editTabSettings" class="member-tab">⚙️ Settings</button>
+  </div>
+
+  <div class="card edit-only" id="todaysLogCard">
     <div class="section-title"><h3>Today's log</h3></div>
     <div class="day-select-row">
       <div class="pill-row" id="memberTabs"></div>
@@ -300,16 +304,10 @@ const firebaseConfig = {
     <button id="nextDayBtn" class="action" style="width:100%; margin-top:10px;">Advance to next day →</button>
   </div>
 
-  <div class="card edit-only">
+  <div class="card edit-only" id="settingsCard">
     <div class="section-title"><h3>Settings</h3></div>
-    <div class="settings-grid">
-      <div>
-        <label class="settings-label">Parent mode code</label>
-        <input type="text" id="pinSetting" style="width:100%;" maxlength="8" inputmode="numeric">
-      </div>
-    </div>
 
-    <div class="section-title" style="margin-top:10px;"><h3 style="font-size:14px;">Editing settings for</h3></div>
+    <div class="section-title"><h3 style="font-size:14px;">Editing settings for</h3></div>
     <div class="pill-row" id="settingsMemberTabs" style="margin-bottom:14px;"></div>
 
     <div class="settings-grid">
@@ -369,6 +367,10 @@ const firebaseConfig = {
       <input type="text" id="newMemberName" placeholder="Add a family member">
       <button class="action" id="addMemberBtn">Add</button>
     </div>
+
+    <div class="section-title" style="margin-top:14px;"><h3 style="font-size:14px;">Parent mode pattern</h3></div>
+    <p class="empty" style="margin-top:-6px;">Draw a new pattern below (at least 4 dots) to change it. It saves as soon as you lift your finger.</p>
+    <svg id="patternSettingSvg" class="pattern-svg" viewBox="0 0 240 240" style="margin:0 auto;"></svg>
   </div>
 
   <div class="footer-row edit-only">
@@ -382,7 +384,16 @@ const firebaseConfig = {
 </div>
 
 <script>
-const STORAGE_KEY = 'behavior-chart-v1';
+// ===== CLOUD SYNC SETUP =====
+// Paste your Firebase project's config here (see setup instructions).
+// This is what lets your phone and the iPad share and sync the same data.
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY_HERE",
+  authDomain: "PASTE_YOUR_AUTH_DOMAIN_HERE",
+  databaseURL: "PASTE_YOUR_DATABASE_URL_HERE",
+  projectId: "PASTE_YOUR_PROJECT_ID_HERE"
+};
+// ===== END CLOUD SYNC SETUP =====
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const SMILEYS = ['😢','🙁','😐','🙂','😄'];
 const COLORS = ['#6E8B5D','#C97B63','#E3A72F','#4E7A8C','#A0669C','#B4553E'];
@@ -391,6 +402,7 @@ let state = null;
 let weekOffset = 0;
 let appMode = null;
 let activeMemberId = null;
+let editSubView = 'log';
 let settingsMemberId = null;
 let settingsChoreDay = null;
 let activeDay = null;
@@ -450,18 +462,7 @@ function defaultState() {
 }
 
 let pinPurpose = 'edit';
-function showPinModal(purpose) {
-  pinPurpose = purpose || 'edit';
-  const heading = document.querySelector('#pinOverlay h3');
-  if (heading) heading.textContent = pinPurpose === 'reset' ? 'Confirm weekly reset' : 'Enter code';
-  document.getElementById('pinInput').value = '';
-  document.getElementById('pinError').textContent = '';
-  document.getElementById('pinOverlay').classList.add('active');
-  setTimeout(() => document.getElementById('pinInput').focus(), 50);
-}
-function hidePinModal() {
-  document.getElementById('pinOverlay').classList.remove('active');
-}
+const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
   document.getElementById('confirmTitle').textContent = title;
@@ -472,6 +473,98 @@ function showConfirm(title, message, onConfirm) {
 function hideConfirm() {
   document.getElementById('confirmOverlay').classList.remove('active');
   confirmCallback = null;
+}
+function patternDotCenter(i) {
+  const col = i % 3, row = Math.floor(i / 3);
+  return { x: col * 80 + 40, y: row * 80 + 40 };
+}
+function renderPatternSvg(svg, points, livePoint) {
+  if (!svg) return;
+  let inner = '';
+  if (points.length > 0) {
+    const pts = points.map(i => { const c = patternDotCenter(i); return c.x + ',' + c.y; });
+    if (livePoint) pts.push(livePoint.x.toFixed(1) + ',' + livePoint.y.toFixed(1));
+    inner += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--sage)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>';
+  }
+  for (let i = 0; i < 9; i++) {
+    const c = patternDotCenter(i);
+    const active = points.includes(i);
+    inner += '<circle cx="' + c.x + '" cy="' + c.y + '" r="18" fill="none" stroke="' + (active ? 'var(--sage)' : 'var(--line)') + '" stroke-width="2.5"/>';
+    inner += '<circle cx="' + c.x + '" cy="' + c.y + '" r="' + (active ? 9 : 6) + '" fill="' + (active ? 'var(--sage)' : 'var(--line)') + '"/>';
+  }
+  svg.innerHTML = inner;
+}
+function nearestPatternDot(x, y) {
+  for (let i = 0; i < 9; i++) {
+    const c = patternDotCenter(i);
+    const dx = x - c.x, dy = y - c.y;
+    if (dx * dx + dy * dy <= 26 * 26) return i;
+  }
+  return -1;
+}
+function attachPatternHandlers(svg, onComplete) {
+  let points = [];
+  let dragging = false;
+  renderPatternSvg(svg, points);
+  function svgPoint(evt) {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = 240 / rect.width, scaleY = 240 / rect.height;
+    return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+  }
+  svg.onpointerdown = (e) => {
+    svg.setPointerCapture(e.pointerId);
+    dragging = true;
+    points = [];
+    const p = svgPoint(e);
+    const idx = nearestPatternDot(p.x, p.y);
+    if (idx >= 0) points.push(idx);
+    renderPatternSvg(svg, points, p);
+  };
+  svg.onpointermove = (e) => {
+    if (!dragging) return;
+    const p = svgPoint(e);
+    const idx = nearestPatternDot(p.x, p.y);
+    if (idx >= 0 && !points.includes(idx)) points.push(idx);
+    renderPatternSvg(svg, points, p);
+  };
+  const finish = () => {
+    if (!dragging) return;
+    dragging = false;
+    const finalPoints = points.slice();
+    renderPatternSvg(svg, finalPoints);
+    onComplete(finalPoints, () => {
+      points = [];
+      renderPatternSvg(svg, points);
+    });
+  };
+  svg.onpointerup = finish;
+  svg.onpointercancel = finish;
+}
+function showPinModal(purpose) {
+  pinPurpose = purpose || 'edit';
+  const heading = document.querySelector('#pinOverlay h3');
+  if (heading) heading.textContent = pinPurpose === 'reset' ? 'Confirm weekly reset — draw pattern' : 'Draw your pattern';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinOverlay').classList.add('active');
+  const svg = document.getElementById('patternSvg');
+  attachPatternHandlers(svg, (points, reset) => {
+    if (points.length < 1) return;
+    const entered = points.join(',');
+    if (entered === (state.pin || DEFAULT_PATTERN)) {
+      hidePinModal();
+      if (pinPurpose === 'reset') performWeeklyReset();
+      else enterMode('edit');
+    } else {
+      document.getElementById('pinError').textContent = "That pattern's not right. Try again.";
+      svg.classList.remove('shake');
+      void svg.getBoundingClientRect();
+      svg.classList.add('shake');
+      setTimeout(() => { svg.classList.remove('shake'); reset(); }, 400);
+    }
+  });
+}
+function hidePinModal() {
+  document.getElementById('pinOverlay').classList.remove('active');
 }
 const PIN_ENABLED = true;
 async function requestEditAccess() {
@@ -489,18 +582,6 @@ function performWeeklyReset() {
   saveState();
   render();
   showToast("New week started — all points reset.");
-}
-function submitPin() {
-  const entered = document.getElementById('pinInput').value.trim();
-  if (entered === (state.pin || "0000")) {
-    hidePinModal();
-    if (pinPurpose === 'reset') performWeeklyReset();
-    else enterMode('edit');
-  } else {
-    document.getElementById('pinError').textContent = "That code's not right. Try again.";
-    document.getElementById('pinInput').value = '';
-    document.getElementById('pinInput').focus();
-  }
 }
 
 function updateCornerButton() {
@@ -520,7 +601,7 @@ async function enterMode(mode) {
   document.body.classList.toggle('mode-view', mode === 'view');
   document.body.classList.toggle('mode-edit', mode === 'edit');
   document.getElementById('familyName').disabled = (mode === 'view');
-  if (mode === 'edit') activeDay = (new Date().getDay() + 6) % 7;
+  if (mode === 'edit') { activeDay = (new Date().getDay() + 6) % 7; editSubView = 'log'; }
   if (activeDay === null) activeDay = (new Date().getDay() + 6) % 7;
   if (settingsChoreDay === null) settingsChoreDay = (new Date().getDay() + 6) % 7;
   if (!activeMemberId && state.members.length) activeMemberId = state.members[0].id;
@@ -539,15 +620,8 @@ function getMonday(offsetWeeks) {
 }
 function weekKey(offsetWeeks) { return getMonday(offsetWeeks).toISOString().slice(0,10); }
 
-async function loadState() {
-  try {
-    const result = await window.storage.get(STORAGE_KEY, false);
-    state = (result && result.value) ? JSON.parse(result.value) : defaultState();
-  } catch (e) {
-    state = defaultState();
-  }
-  if (!state.pin) state.pin = "0000";
-  if (state.pin === "1234") state.pin = "0000";
+function runStateMigrations() {
+  if (!state.pin || /^\d+$/.test(state.pin)) state.pin = DEFAULT_PATTERN;
   if (state.members) {
     state.members.forEach(m => {
       if (m.weeklyGoal === undefined) m.weeklyGoal = (state.weeklyGoal !== undefined ? state.weeklyGoal : 20);
@@ -611,31 +685,58 @@ function showToast(msg) {
 let saveDebounceTimer = null;
 let saveInFlight = false;
 let saveQueued = false;
+let localEditPending = false;
+let dataRef = null;
+let firstSyncResolve = null;
+let hasRenderedOnce = false;
 
 function saveState() {
+  localEditPending = true;
   clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(flushSave, 450);
 }
 
 async function flushSave() {
+  if (!dataRef) return;
   if (saveInFlight) { saveQueued = true; return; }
   saveInFlight = true;
-  const payload = JSON.stringify(state);
   try {
-    const result = await window.storage.set(STORAGE_KEY, payload, false);
-    if (!result) throw new Error('No result from storage');
+    await dataRef.set(state);
+    localEditPending = false;
   } catch (e) {
-    try {
-      await new Promise(r => setTimeout(r, 800));
-      const retryResult = await window.storage.set(STORAGE_KEY, payload, false);
-      if (!retryResult) throw new Error('No result on retry');
-    } catch (e2) {
-      console.warn('Storage save did not go through', e2);
-      showToast("Couldn't save just now — check your connection and try again.");
-    }
+    console.warn('Cloud save failed', e);
+    showToast("Couldn't save just now — check your connection and try again.");
   }
   saveInFlight = false;
   if (saveQueued) { saveQueued = false; saveDebounceTimer = setTimeout(flushSave, 450); }
+}
+
+function initCloudSync() {
+  if (typeof firebase === 'undefined' || !firebaseConfig || firebaseConfig.apiKey === 'PASTE_YOUR_API_KEY_HERE') {
+    console.warn('Firebase is not configured — data will not save or sync. See the firebaseConfig section near the top of the script.');
+    state = defaultState();
+    runStateMigrations();
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+    showToast('Cloud sync is not set up yet — changes will not be saved.');
+    return;
+  }
+  firebase.initializeApp(firebaseConfig);
+  dataRef = firebase.database().ref('chart_3468352f72228046d4a66352');
+  dataRef.on('value', (snapshot) => {
+    if (localEditPending || saveInFlight) return;
+    const val = snapshot.val();
+    state = val || defaultState();
+    runStateMigrations();
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+  }, (error) => {
+    console.warn('Cloud sync error', error);
+    if (!state) { state = defaultState(); runStateMigrations(); }
+    if (firstSyncResolve) { firstSyncResolve(); firstSyncResolve = null; }
+    render();
+    showToast("Couldn't connect to sync — check your connection.");
+  });
 }
 
 function logKey(memberId, day, offset) {
@@ -998,6 +1099,21 @@ function renderJars() {
   });
 }
 
+function updateEditSubView() {
+  const logCard = document.getElementById('todaysLogCard');
+  const settingsCard = document.getElementById('settingsCard');
+  const tabLog = document.getElementById('editTabLog');
+  const tabSettings = document.getElementById('editTabSettings');
+  if (!logCard || !settingsCard || !tabLog || !tabSettings) return;
+  logCard.style.display = editSubView === 'log' ? 'block' : 'none';
+  settingsCard.style.display = editSubView === 'settings' ? 'block' : 'none';
+  [tabLog, tabSettings].forEach(btn => { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; });
+  const activeTab = editSubView === 'log' ? tabLog : tabSettings;
+  activeTab.style.background = 'var(--sage)';
+  activeTab.style.borderColor = 'var(--sage)';
+  activeTab.style.color = '#fff';
+}
+
 function render() {
   if (!state) return;
   document.getElementById('familyName').value = state.familyName;
@@ -1006,6 +1122,7 @@ function render() {
   if (sundayWrap) sundayWrap.style.display = (new Date().getDay() === 0) ? 'block' : 'none';
 
   renderJars();
+  updateEditSubView();
 
   const memberTabs = document.getElementById('memberTabs');
   memberTabs.innerHTML = '';
@@ -1107,8 +1224,6 @@ function render() {
 
     todayPointsEl.textContent = computeDayPoints(activeMemberId, activeDay) + ' points for ' + DAYS[activeDay];
   }
-
-  document.getElementById('pinSetting').value = state.pin;
 
   if (!settingsMemberId || !getMember(settingsMemberId)) {
     settingsMemberId = state.members.length ? state.members[0].id : null;
@@ -1229,8 +1344,9 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   activeDay = Math.min(6, activeDay + 1);
   render();
 });
+document.getElementById('editTabLog').addEventListener('click', () => { editSubView = 'log'; updateEditSubView(); });
+document.getElementById('editTabSettings').addEventListener('click', () => { editSubView = 'settings'; updateEditSubView(); });
 document.getElementById('sundayResetBtn').addEventListener('click', requestWeeklyReset);
-document.getElementById('pinSubmit').addEventListener('click', submitPin);
 document.getElementById('confirmYesBtn').addEventListener('click', () => {
   const cb = confirmCallback;
   hideConfirm();
@@ -1238,7 +1354,6 @@ document.getElementById('confirmYesBtn').addEventListener('click', () => {
 });
 document.getElementById('confirmCancelBtn').addEventListener('click', hideConfirm);
 document.getElementById('pinCancel').addEventListener('click', hidePinModal);
-document.getElementById('pinInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPin(); });
 document.getElementById('familyName').addEventListener('change', (e) => { state.familyName = e.target.value; saveState(); });
 document.getElementById('addMemberBtn').addEventListener('click', addMember);
 document.getElementById('newMemberName').addEventListener('keydown', (e) => { if (e.key === 'Enter') addMember(); });
@@ -1254,10 +1369,24 @@ document.getElementById('rewardText').addEventListener('change', (e) => {
   const m = getMember(settingsMemberId); if (!m) return;
   m.reward = e.target.value; saveState(); render();
 });
-document.getElementById('pinSetting').addEventListener('change', (e) => {
-  const v = e.target.value.trim();
-  if (v) { state.pin = v; saveState(); }
-});
+let settingsPatternInitialized = false;
+function initSettingsPattern() {
+  if (settingsPatternInitialized) return;
+  settingsPatternInitialized = true;
+  const svg = document.getElementById('patternSettingSvg');
+  attachPatternHandlers(svg, (points, reset) => {
+    if (points.length < 4) {
+      showToast('Use at least 4 dots for the pattern.');
+      reset();
+      return;
+    }
+    state.pin = points.join(',');
+    saveState();
+    showToast('Parent mode pattern updated.');
+    setTimeout(reset, 500);
+  });
+}
+initSettingsPattern();
 document.getElementById('resetBtn').addEventListener('click', () => {
   showConfirm('Reset all chart data?', 'This cannot be undone.', async () => {
     state = defaultState();
@@ -1270,8 +1399,11 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   });
 });
 
-stateReadyPromise = loadState();
-stateReadyPromise.then(() => enterMode('view'));
+stateReadyPromise = new Promise((resolve) => { firstSyncResolve = resolve; });
+stateReadyPromise.then(() => {
+  if (!hasRenderedOnce) { hasRenderedOnce = true; enterMode('view'); }
+});
+initCloudSync();
 </script>
 </body>
 </html>
