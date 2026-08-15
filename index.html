@@ -8,10 +8,11 @@
 <link rel="icon" type="image/png" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#6E8B5D">
+<meta name="theme-color" content="#6E8B5D" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1E1B17" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Behavior Chart">
+<meta name="apple-mobile-web-app-title" content="Star Jar">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -30,6 +31,21 @@
     --clay: #C97B63;
     --clay-light: #F5DFD6;
     --line: #E9E1D2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cream: #1E1B17;
+      --card: #29251F;
+      --ink: #F2EDE3;
+      --ink-soft: #B5AC9C;
+      --sage: #8FBF7A;
+      --sage-light: #24301F;
+      --mustard: #F0B429;
+      --mustard-light: #3A2E10;
+      --clay: #E0937A;
+      --clay-light: #3A2620;
+      --line: #46403A;
+    }
   }
   * { box-sizing: border-box; }
   body {
@@ -147,13 +163,13 @@
   .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .member-tab {
     padding: 8px 16px; border-radius: 20px; border: 2px solid var(--line);
-    background: #fff; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px;
+    background: var(--card); font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px;
     cursor: pointer; color: var(--ink);
   }
   .member-tab.active { color: #fff; }
   .member-pill {
     display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 20px;
-    border: 1px solid var(--line); background: #fff; font-size: 13px; font-weight: 700;
+    border: 1px solid var(--line); background: var(--card); font-size: 13px; font-weight: 700;
   }
   .member-pill button { border: none; background: none; cursor: pointer; color: var(--ink-soft); font-size: 13px; }
   .add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
@@ -181,7 +197,7 @@
   .day-nav { display: flex; align-items: center; gap: 8px; }
   .day-nav-btn {
     width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
-    background: #fff; cursor: pointer; font-size: 15px; color: var(--ink);
+    background: var(--card); cursor: pointer; font-size: 15px; color: var(--ink);
   }
   .day-nav-btn:disabled { opacity: 0.35; cursor: default; }
   .day-nav-btn.today-btn {
@@ -192,13 +208,13 @@
   .smiley-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .smiley-btn {
     flex: 1; font-size: 26px; padding: 10px 4px; border-radius: 12px; border: 2px solid var(--line);
-    background: #fff; cursor: pointer; text-align: center;
+    background: var(--card); cursor: pointer; text-align: center;
   }
   .smiley-btn.selected { border-color: var(--sage); background: var(--sage-light); }
   .check-list { display: flex; flex-direction: column; gap: 6px; }
   .check-item {
     display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
-    border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 14px;
+    border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 14px;
   }
   .check-item.checked.good { background: var(--sage-light); border-color: var(--sage); }
   .check-item.checked.bad { background: var(--clay-light); border-color: var(--clay); }
@@ -207,14 +223,14 @@
   .stepper { display: flex; align-items: center; gap: 6px; }
   .step-btn {
     width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line);
-    background: #fff; cursor: pointer; font-size: 15px; line-height: 1; color: var(--ink);
+    background: var(--card); cursor: pointer; font-size: 15px; line-height: 1; color: var(--ink);
     display: flex; align-items: center; justify-content: center;
   }
   .step-count { font-size: 13px; font-weight: 700; min-width: 14px; text-align: center; }
   .today-points { text-align: center; font-family: 'Fredoka', sans-serif; font-size: 18px; margin: 14px 0 4px; }
   .catalog-row {
     display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px;
-    border: 1px solid var(--line); margin-bottom: 6px; font-size: 13px; background: #fff;
+    border: 1px solid var(--line); margin-bottom: 6px; font-size: 13px; background: var(--card);
     touch-action: none;
   }
   .catalog-row .pts { margin-left: auto; font-weight: 700; color: var(--ink-soft); }
@@ -272,7 +288,7 @@
     <svg id="patternSvg" class="pattern-svg" viewBox="0 0 240 240"></svg>
     <div class="pin-error" id="pinError"></div>
     <div class="pin-actions">
-      <button class="action" id="pinCancel" style="background:#fff;color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
+      <button class="action" id="pinCancel" style="background:var(--card);color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
     </div>
   </div>
 </div>
@@ -282,7 +298,7 @@
     <h3 id="confirmTitle">Are you sure?</h3>
     <p id="confirmMessage" style="font-size:13px; color:var(--ink-soft); margin:8px 0 4px;"></p>
     <div class="pin-actions">
-      <button class="action" id="confirmCancelBtn" style="background:#fff;color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
+      <button class="action" id="confirmCancelBtn" style="background:var(--card);color:var(--ink-soft);border:1px solid var(--line);">Cancel</button>
       <button class="action" id="confirmYesBtn" style="background:var(--clay);">Yes</button>
     </div>
   </div>
