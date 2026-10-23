@@ -512,19 +512,20 @@
     --good: #1FA65A; --good-light: #D8F3E2; --bad: #F2464B; --bad-light: #FFDCDC;
     --cream: #FFF4D6; --card: #FFFFFF; --ink: #1C1B1A; --ink-soft: #55524C;
     --sage: #1FA65A; --sage-light: #D8F3E2; --mustard: #FFC21A; --mustard-light: #FFF0BF;
-    --clay: #F2464B; --clay-light: #FFDCDC; --line: #1C1B1A; --cell: #F3EEE2;
-    --on-accent: #FFFFFF; --mustard-shadow: #1C1B1A;
-    --jar-glass: #FFFFFF; --jar-line: #1C1B1A; --jar-fill: #FFC21A; --member: #2F7CF6;
-    --card-border: 3px solid #1C1B1A; --card-shadow: 5px 5px 0 #1C1B1A; --card-radius: 20px;
+    --clay: #F2464B; --clay-light: #FFDCDC; --line: var(--outline); --cell: #F3EEE2;
+    --on-accent: #FFFFFF; --mustard-shadow: var(--outline);
+    --jar-glass: #FFFFFF; --jar-line: var(--outline); --jar-fill: #FFC21A; --member: #2F7CF6;
+    --card-border: 3px solid var(--outline); --card-shadow: 5px 5px 0 var(--outline); --card-radius: 20px;
     --font-display: 'Lilita One', 'Arial Black', sans-serif; --font-body: 'Nunito', 'Segoe UI', sans-serif;
+    --outline: #1C1B1A;
     color-scheme: light;
   }
   body[data-look="crayon"] .day-cell-mini { border-width: 2px; }
-  body[data-look="crayon"] .day-cell-mini.today { box-shadow: 0 0 0 3px #1C1B1A inset; }
+  body[data-look="crayon"] .day-cell-mini.today { box-shadow: 0 0 0 3px var(--outline) inset; }
   body[data-look="crayon"] h1, body[data-look="crayon"] h2, body[data-look="crayon"] h3,
   body[data-look="crayon"] .jar-pct, body[data-look="crayon"] .clock-time, body[data-look="crayon"] .family-name { font-weight: 400; letter-spacing: 0.01em; }
-  body[data-look="crayon"] .family-name { border-bottom: 3px solid #1C1B1A; }
-  body[data-look="crayon"] button.action, body[data-look="crayon"] .member-tab, body[data-look="crayon"] .edit-corner-btn { border: 2px solid #1C1B1A; }
+  body[data-look="crayon"] .family-name { border-bottom: 3px solid var(--outline); }
+  body[data-look="crayon"] button.action, body[data-look="crayon"] .member-tab, body[data-look="crayon"] .edit-corner-btn { border: 2px solid var(--outline); }
   body[data-look="crayon"] .jar-svg rect { stroke-width: 3; }
 
   /* 4 · Ocean Breeze — calm sea glass: teal, coral and sunshine */
@@ -545,10 +546,37 @@
   body[data-look="ocean"] .family-name { border-bottom-style: solid; border-bottom-width: 1px; }
   body[data-look="ocean"] button.action, body[data-look="ocean"] .member-tab { border-radius: 999px; }
 
+  /* ---- Dark versions: when the phone is in dark mode, each look switches to its own dark colours.
+         (Honey Jar uses the dark colours at the top; Starry Night is always dark.) ---- */
+  @media (prefers-color-scheme: dark) {
+    body[data-look="crayon"] {
+      --cream: #1A1814; --card: #26231E; --ink: #FFF6E0; --ink-soft: #CFC5AE;
+      --sage: #3FD17D; --sage-light: #1B3A28; --mustard: #FFC93A; --mustard-light: #3D3214;
+      --clay: #FF6B6F; --clay-light: #45201F; --cell: #312D26;
+      --good: #3FD17D; --good-light: #1B3A28; --bad: #FF6B6F; --bad-light: #45201F;
+      --on-accent: #1A1814; --outline: #EDE3C8; --mustard-shadow: #8A6A12;
+      --jar-glass: #2B2721; --jar-fill: #FFC93A; --member: #5B9BFF;
+      --card-shadow: 5px 5px 0 #000000;
+      color-scheme: dark;
+    }
+    body[data-look="ocean"] {
+      --cream: #0B2328; --card: #12323A; --ink: #E3F6F6; --ink-soft: #93BCC0;
+      --sage: #3FC1C9; --sage-light: #123F45; --mustard: #FFB84D; --mustard-light: #3A2C12;
+      --clay: #FF8A7E; --clay-light: #40221F; --line: #1F4A51; --cell: #163A41;
+      --good: #4FD18A; --good-light: #133A2A; --bad: #FF7A6E; --bad-light: #40201E;
+      --on-accent: #06222A; --mustard-shadow: #B37A1C;
+      --jar-glass: #14363D; --jar-line: #3E7F86; --jar-fill: #FFB84D; --member: #3FC1C9;
+      --card-border: 1px solid #1F4A51; --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      color-scheme: dark;
+      background-image: linear-gradient(180deg, #0B2328 0%, #071A1E 100%);
+    }
+  }
+
 
   .look-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
   .look-option { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: 700 13px var(--font-body); cursor: pointer; text-align: left; }
   .look-option .sw { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+  .look-note { margin: -6px 0 16px; font-size: 12px; color: var(--ink-soft); }
   .look-option[aria-pressed="true"] { border-color: var(--sage); box-shadow: 0 0 0 2px var(--sage) inset; }
 
   /* ---- Switching modes: parent sections slide down into place, kids page settles in ---- */
@@ -769,6 +797,7 @@
       <button type="button" class="look-option" data-look="crayon"><span class="sw" style="background:linear-gradient(135deg,#2F7CF6 50%,#F2464B 50%)"></span>Crayon Box</button>
       <button type="button" class="look-option" data-look="ocean"><span class="sw" style="background:linear-gradient(135deg,#168F98 50%,#FFB03B 50%)"></span>Ocean Breeze</button>
     </div>
+    <p class="look-note">Each look turns dark by itself when your phone is in dark mode. Starry Night is always dark.</p>
 
     <div class="section-title"><h3 style="font-size:14px;">Editing settings for</h3></div>
     <div class="pill-row" id="settingsMemberTabs" style="margin-bottom:14px;"></div>
@@ -971,7 +1000,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -2791,6 +2820,13 @@ function applyLook() {
   }
   document.querySelectorAll('#lookPicker .look-option').forEach(b => b.setAttribute('aria-pressed', b.dataset.look === look ? 'true' : 'false'));
 }
+try {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!state) return;
+    state.members.forEach(m => renderTrend(m));
+    if (document.body.classList.contains('stats-open')) renderStats();
+  });
+} catch (e) {}
 document.querySelectorAll('#lookPicker .look-option').forEach(b => b.addEventListener('click', () => {
   state.look = b.dataset.look;
   applyLook(); saveState(); render();
