@@ -90,6 +90,7 @@
     border-bottom: 2px dashed var(--line); padding: 2px 4px; width: 100%;
   }
   .family-name:focus { outline: none; border-color: var(--sage); }
+  body.mode-view .family-name { pointer-events: none; }   /* kids page: nothing to edit */
   .card {
     background: var(--card); border: var(--card-border); border-radius: var(--card-radius);
     box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 16px;
@@ -163,7 +164,6 @@
   .trend-dir.down { color: var(--clay); }
   .trend-svg { display: block; width: 100%; height: auto; margin-top: 2px; }
   .trend-empty { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.35; }
-  .reward-banner.tappable { cursor: pointer; }
   .trend-hint { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
   .trend-hit { cursor: pointer; }
   .trend-pending-ring { transform-box: fill-box; transform-origin: center; animation: pendingSpin 6s linear infinite; }
@@ -712,9 +712,6 @@
   .celebrate-who { font-size: 18px; font-weight: 700; }
   .celebrate-reward { margin: 12px auto 0; display: inline-block; font-weight: 800; font-size: 16px; padding: 8px 14px; border-radius: 14px;
     background: var(--mustard-light); color: var(--ink); }
-  .celebrate-btn { margin-top: 18px; width: 100%; border: none; border-radius: 16px; padding: 14px; font: 700 18px var(--font-display);
-    background: var(--mustard); color: var(--on-accent); box-shadow: 0 4px 0 var(--mustard-shadow); cursor: pointer; }
-  .celebrate-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--mustard-shadow); }
 
   /* ===================== New jar: the emptying animation ===================== */
   .reset-star { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 7; line-height: 1;
@@ -729,11 +726,10 @@
     .celebrate-card { max-width: min(680px, 90vw); display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: clamp(16px, 4vw, 40px);
       align-items: center; text-align: left; padding: clamp(14px, 5vh, 34px) clamp(18px, 4vw, 38px); }
     .celebrate-card > * { grid-column: 2; }
-    .celebrate-trophy { grid-column: 1; grid-row: 1 / span 4; font-size: clamp(64px, 30vh, 150px); }
+    .celebrate-trophy { grid-column: 1; grid-row: 1 / span 3; font-size: clamp(64px, 30vh, 150px); }
     .celebrate-title { font-size: clamp(30px, 12vh, 64px); margin: 0 0 1vh; }
     .celebrate-who { font-size: clamp(15px, 5vh, 24px); }
     .celebrate-reward { justify-self: start; margin: 2vh 0 0; font-size: clamp(14px, 4.5vh, 22px); }
-    .celebrate-btn { margin-top: 3vh; padding: clamp(10px, 3vh, 16px); font-size: clamp(16px, 5vh, 24px); }
   }
   @media (prefers-reduced-motion: reduce) {
     .celebrate .rays, .celebrate.show .celebrate-trophy { animation: none; }
@@ -1062,7 +1058,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.8';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -1327,7 +1323,6 @@ function undoNewJar(memberId) {
   const hist = jarHistoryList(m).filter(j => j !== last);
   m.jarHistory = hist;
   m.jar = { startWeekMs: prev.startWeekMs, startDay: prev.startDay || 0, carry: Number(prev.carry) || 0, n: last.n, again: Date.now() };
-  delete m.celebrateClosed;
   encouragementCache = {};
   saveState();
   render();
@@ -2442,10 +2437,9 @@ function runConfetti(canvas, ms) {
   })(start);
 }
 
-// The celebration that's showing on this phone right now (if any), so a "Yay!" tapped on another
-// phone (or a new jar being started) closes it here too.
+// The celebration that's showing on this phone right now (if any), so a new jar being started closes it.
 let openCelebration = null;
-const CELEBRATE_AUTO_CLOSE_MS = 60000;   // closes by itself after a minute if nobody taps it
+const CELEBRATE_SHOW_MS = 7500;   // plays, then goes back to the main screen by itself (nothing to tap)
 function celebrateJarFull(m, onClose, jarN) {
   if (document.querySelector('.celebrate')) return;
   const wrap = document.createElement('div');
@@ -2457,34 +2451,25 @@ function celebrateJarFull(m, onClose, jarN) {
     '<div class="celebrate-card"><div class="celebrate-trophy">🏆</div>' +
     '<div class="celebrate-title">' + title + '</div>' +
     '<div class="celebrate-who">Amazing, ' + escapeHtml(m.name) + '! You filled the whole jar! ⭐</div>' +
-    '<div class="celebrate-reward">🎁 You\'ve earned a reward!</div>' +
-    '<button type="button" class="celebrate-btn">Yay! 🎉</button></div>';
+    '<div class="celebrate-reward">🎁 You\'ve earned a reward!</div></div>';
   document.body.appendChild(wrap);
   let closed = false;
-  const close = (tellOthers) => {
+  const close = () => {
     if (closed) return;
     closed = true;
     if (openCelebration && openCelebration.wrap === wrap) openCelebration = null;
     clearTimeout(autoClose);
-    // Closed here by a tap → tell the other phones/iPads, so the lounge room screen follows along
-    if (tellOthers && jarN) {
-      const mm = getMember(m.id);
-      if (mm) { mm.celebrateClosed = { jar: jarN, at: Date.now() }; saveState(); }
-    }
     wrap.classList.remove('show');
-    setTimeout(() => { wrap.remove(); if (onClose) onClose(!!tellOthers); }, 320);
+    setTimeout(() => { wrap.remove(); if (onClose) onClose(); }, 400);
   };
-  const autoClose = setTimeout(() => close(false), CELEBRATE_AUTO_CLOSE_MS);
+  const autoClose = setTimeout(close, CELEBRATE_SHOW_MS);
   openCelebration = { id: m.id, jarN, openedAt: Date.now(), wrap, close };
-  wrap.querySelector('.celebrate-btn').addEventListener('click', () => close(true));
   requestAnimationFrame(() => {
     wrap.classList.add('show');
     if (!motionCalm()) runConfetti(wrap.querySelector('canvas'), 5200);
   });
   playFanfare();
   try { if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 140]); } catch (e) {}
-  // a second shower of confetti while it's still up
-  setTimeout(() => { if (wrap.isConnected && !motionCalm()) runConfetti(wrap.querySelector('canvas'), 4200); }, 5600);
 }
 
 // ===================== New jar: the full jar tips over, pours its stars out, and comes back empty =====================
@@ -2594,19 +2579,14 @@ function showNewJarBadge(vis, m) {
 }
 
 // Called for each child on every redraw.
-//  • Jar reaches 100% → it stays full and "JAR FULL!" plays (once per jar on each phone/iPad).
-//  • "Yay!" tapped on any phone → the celebration closes on every phone. The jar stays full.
-//    (If nobody taps, it closes itself after a minute.)
+//  • Jar reaches 100% → it stays full and "JAR FULL!" plays (once per jar on each phone/iPad), then
+//    goes back to the main screen by itself. Nothing on the kids page can be tapped.
 //  • Parent presses "Start new jar" → every phone plays the jar tipping out and coming back empty.
 const jarMomentsBusy = {};
 function checkJarMoments(m) {
   const n = (m.jar && m.jar.n) || 1;
-  const oc = openCelebration, cc = m.celebrateClosed;
-  if (oc && oc.id === m.id) {
-    if (n > oc.jarN) oc.close(false);   // a new jar has been started
-    // "Yay!" tapped on another phone after this one opened (give or take a few seconds for clocks)
-    else if (cc && Number(cc.jar) >= oc.jarN && Number(cc.at) >= oc.openedAt - 3000) oc.close(false);
-  }
+  const oc = openCelebration;
+  if (oc && oc.id === m.id && n > oc.jarN) oc.close();   // a new jar has been started
   const seen = Number(readLocal(seenJarKey(m)));
   if (!seen || n < seen) writeLocal(seenJarKey(m), n);   // (n goes back down after "Undo the last new jar")
   else if (n > seen) {
@@ -2748,14 +2728,11 @@ function renderJars() {
     if (rewardEl) {
       if (bannerKey) {
         rewardEl.style.display = 'block';
-        const parentBtn = earned && appMode === 'edit';
-        rewardEl.textContent = earned ? (parentBtn ? '✨ Start new jar' : '🏆 Jar full! 🎉') : '🚚 Reward on its way!';
-        rewardEl.classList.toggle('tappable', parentBtn);
+        // Display only. A new jar is started from the button in Today's log (parent mode).
+        rewardEl.textContent = earned ? '🏆 Jar full! 🎉' : '🚚 Reward on its way!';
         rewardEl.classList.toggle('pop', previouslyEarned[m.id] !== bannerKey);
-        rewardEl.onclick = parentBtn ? () => askStartNextJar(m.id) : null;
       } else {
         rewardEl.style.display = 'none';
-        rewardEl.onclick = null;
       }
     }
     previouslyEarned[m.id] = bannerKey;
@@ -2826,6 +2803,8 @@ function updateEditSubView() {
 
 function render() {
   if (!state) return;
+  const nameEl = document.getElementById('familyName');
+  if (nameEl) { nameEl.readOnly = appMode !== 'edit'; nameEl.tabIndex = appMode === 'edit' ? 0 : -1; }
   const undoBtn = document.getElementById('undoJarBtn');
   if (undoBtn) { const um = getMember(settingsMemberId) || state.members[0]; undoBtn.style.display = um && lastFinishedJar(um) ? '' : 'none'; }
   if (document.body.classList.contains('stats-open')) setTimeout(renderStats, 0);
