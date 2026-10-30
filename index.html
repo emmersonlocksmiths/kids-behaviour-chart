@@ -353,6 +353,9 @@
   #editTabBar { flex-wrap: nowrap; gap: 6px; }
   #editTabBar .member-tab { white-space: nowrap; padding: 8px clamp(10px, 3.2vw, 16px); font-size: clamp(12.5px, 3.7vw, 14px); }
   body.mode-edit { padding-top: 20px; }
+  /* Small version number in the top-right corner, so you can tell at a glance which update a screen is on */
+  .version-tag { position: fixed; z-index: 60; top: calc(6px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px));
+    font: 700 11px var(--font-body); color: var(--ink-soft); opacity: 0.75; letter-spacing: 0.03em; pointer-events: none; user-select: none; }
   .app-version { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--ink-soft); letter-spacing: 0.02em; }
   body.booting .wrap, body.booting #switchModeBtn { opacity: 0; }
   body.mode-edit .day-cell-mini { cursor: pointer; transition: transform 0.12s ease; }
@@ -805,6 +808,7 @@
 
 <div class="wrap">
 
+  <div class="version-tag" id="versionTag" aria-label="App version"></div>
   <div class="header">
     <input class="family-name" id="familyName" value="Loading..." />
   </div>
@@ -1058,7 +1062,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -2801,6 +2805,13 @@ function updateEditSubView() {
   activeTab.style.color = '#fff';
 }
 
+// Version number: top-right corner of every screen, and at the bottom of Settings
+(function showVersion() {
+  const tag = document.getElementById('versionTag');
+  if (tag) tag.textContent = 'v' + APP_VERSION;
+  const line = document.getElementById('appVersion');
+  if (line) line.textContent = 'Version ' + APP_VERSION;
+})();
 function render() {
   if (!state) return;
   const nameEl = document.getElementById('familyName');
