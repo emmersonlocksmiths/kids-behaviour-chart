@@ -163,6 +163,11 @@
   .trend-dir.down { color: var(--clay); }
   .trend-svg { display: block; width: 100%; height: auto; margin-top: 2px; }
   .trend-empty { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.35; }
+  .trend-hint { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .trend-hit { cursor: pointer; }
+  .trend-pending-ring { transform-box: fill-box; transform-origin: center; animation: pendingSpin 6s linear infinite; }
+  @keyframes pendingSpin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .trend-pending-ring { animation: none; } }
   .jar-name { font-size: 16px; font-weight: 700; }
   .jar-pct { font-size: 26px; font-weight: 700; font-family: var(--font-display); color: var(--ink); margin-top: 2px; }
   .jar-encourage { font-size: 13px; font-weight: 700; color: var(--sage); margin-top: 3px; min-height: 16px; }
@@ -716,6 +721,19 @@
   .new-jar-badge { position: absolute; left: 50%; top: 42%; z-index: 8; white-space: nowrap; pointer-events: none;
     font: 700 15px var(--font-display); padding: 6px 12px; border-radius: 999px; background: var(--sage); color: var(--on-accent);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); transform: translateX(-50%); }
+  /* Sideways phone (the lounge room screen): a wide card with the trophy beside the words, sized to the screen height */
+  @media (orientation: landscape) and (max-height: 600px) {
+    .celebrate { padding: 3vh 4vw; }
+    .celebrate .rays { top: 50%; }
+    .celebrate-card { max-width: min(680px, 90vw); display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: clamp(16px, 4vw, 40px);
+      align-items: center; text-align: left; padding: clamp(14px, 5vh, 34px) clamp(18px, 4vw, 38px); }
+    .celebrate-card > * { grid-column: 2; }
+    .celebrate-trophy { grid-column: 1; grid-row: 1 / span 4; font-size: clamp(64px, 30vh, 150px); }
+    .celebrate-title { font-size: clamp(30px, 12vh, 64px); margin: 0 0 1vh; }
+    .celebrate-who { font-size: clamp(15px, 5vh, 24px); }
+    .celebrate-reward { justify-self: start; margin: 2vh 0 0; font-size: clamp(14px, 4.5vh, 22px); }
+    .celebrate-btn { margin-top: 3vh; padding: clamp(10px, 3vh, 16px); font-size: clamp(16px, 5vh, 24px); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .celebrate .rays, .celebrate.show .celebrate-trophy { animation: none; }
     .celebrate.show .celebrate-card, .celebrate.show .celebrate-title span { animation-duration: 0.01s; animation-delay: 0s; }
@@ -1042,7 +1060,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -1158,8 +1176,8 @@ async function requestEditAccess() {
 function requestWeeklyReset() {
   showPinModal('reset');
 }
-// ---- Open-ended jar: no deadline. It fills until it reaches the goal, a parent gives the reward,
-//      and a new jar starts (extra points carry over). ----
+// ---- Open-ended jar: no deadline. It fills until it reaches the goal, then a new jar starts by itself
+//      (extra points carry over). The reward for each jar is tracked separately on the bar graph. ----
 const LOG_KEEP_WEEKS = 53;     // daily logs kept (and editable) for about 1 year back, at least
 const JAR_HISTORY_KEEP = 8;    // finished jars shown on the "days to fill" bar graph
 const HISTORY_WEEKS = LOG_KEEP_WEEKS;
@@ -1211,37 +1229,80 @@ function isDayInCurrentJar(m, off, d) {
   const startOff = weekOffsetOfMs(m.jar.startWeekMs);
   return off > startOff || (off === startOff && d >= (m.jar.startDay || 0));
 }
-// Parent pressed "Reward given": record the finished jar and start a new one, carrying extra points over.
-function giveReward(memberId) {
-  const m = getMember(memberId);
-  if (!m) return;
+// The jar and the reward are separate:
+//  • As soon as a jar reaches 100% it is recorded on the bar graph and a new jar starts straight away
+//    (extra stars carry over). Nobody has to press anything.
+//  • The reward for that jar starts as "on its way" (🚚). A parent marks it received (🎁) whenever
+//    it's actually been given — from the bar graph or from Today's log.
+function rewardPending(j) { return j && j.given === false; }   // older jars (from before this) count as received
+function pendingRewards(m) { return jarHistoryList(m).filter(rewardPending); }
+
+// Records a full jar and starts the next one. Returns true if it rolled over.
+function rollJar(m) {
   ensureJar(m);
   const goal = m.weeklyGoal || 0;
   const total = jarPoints(m);
-  if (!jarFull(total, goal)) return;
+  if (!jarFull(total, goal)) return false;
   const hist = jarHistoryList(m);
-  // find the day the jar first reached 100%
-  let running = Number(m.jar.carry) || 0, fullMs = null;
+  // find the day the jar first reached 100%, and how many days that took
+  let running = Number(m.jar.carry) || 0, fullMs = null, fullLabel = '', days = 0;
   forEachJarDay(m, (off, d) => {
     if (fullMs !== null) return;
+    days++;
     running += computeDayPoints(m.id, d, off);
-    if (jarFull(running, goal)) fullMs = dayStartMs(off, d);
+    if (jarFull(running, goal)) { fullMs = dayStartMs(off, d); fullLabel = shortDate(off, d); }
   });
-  if (fullMs === null) fullMs = dayStartMs(0, getCurrentDay());
-  hist.push({ n: m.jar.n || 1, days: jarDays(m), points: total, goal, reward: m.reward || '', earned: shortDate(0, getCurrentDay()), fullMs });
-  while (hist.length > JAR_HISTORY_KEEP) hist.shift();
+  if (fullMs === null) { fullMs = dayStartMs(0, getCurrentDay()); fullLabel = shortDate(0, getCurrentDay()); days = jarDays(m); }
+  hist.push({ n: m.jar.n || 1, days: Math.max(1, days), points: total, goal, reward: m.reward || '', earned: fullLabel, fullMs, given: false });
+  // keep the graph to the last few jars, but never drop a reward that hasn't been given yet
+  while (hist.length > JAR_HISTORY_KEEP) {
+    const i = hist.findIndex(j => !rewardPending(j));
+    if (i < 0) break;
+    hist.splice(i, 1);
+  }
   m.jarHistory = hist;
   // New jar starts today. Its carry is set so that it begins at exactly (total - goal), and any more
   // points logged later today still count toward it.
   const todayPts = computeDayPoints(m.id, getCurrentDay(), 0);
   m.jar = { startWeekMs: getMonday(0).getTime(), startDay: getCurrentDay(), carry: Math.round((Math.max(0, total - goal) - todayPts) * 10) / 10, n: (m.jar.n || 1) + 1 };
-  previouslyEarned[m.id] = false;
-  encouragementCache = {};
-  pruneOldLogs();
+  return true;
+}
+// Called at the start of every redraw: any jar that has reached 100% rolls over by itself.
+function autoRollJars() {
+  let rolled = false;
+  (state.members || []).forEach(m => {
+    for (let guard = 0; guard < 5 && rollJar(m); guard++) rolled = true;   // (a big carry-over could fill more than one)
+  });
+  if (rolled) {
+    encouragementCache = {};
+    pruneOldLogs();
+    saveState();
+  }
+}
+// Parent: mark a jar's reward as received (or back to "on its way" if it was tapped by mistake).
+function setRewardGiven(memberId, jarN, given) {
+  const m = getMember(memberId);
+  if (!m) return;
+  const hist = jarHistoryList(m);
+  const j = hist.find(x => x.n === jarN);
+  if (!j) return;
+  j.given = !!given;
+  if (given) j.givenOn = shortDate(0, getCurrentDay()); else delete j.givenOn;
+  m.jarHistory = hist;
   saveState();
   render();
-  const extra = Math.round((total - goal) * 10) / 10;
-  showToast('New jar started' + (extra > 0 ? ' — ' + extra + ' extra star' + (extra === 1 ? '' : 's') + ' carried over.' : '.'));
+  showToast(given ? '🎁 ' + m.name + "'s reward marked as received." : '🚚 Back to "on its way".');
+}
+function askRewardGiven(memberId, jarN) {
+  const m = getMember(memberId);
+  const j = m && jarHistoryList(m).find(x => x.n === jarN);
+  if (!j) return;
+  const what = (j.reward ? j.reward + ' · ' : '') + 'jar ' + j.n + ', filled ' + (j.earned || '');
+  if (rewardPending(j)) {
+    showConfirm('🎁 ' + m.name + "'s reward received?", what + '.', () => setRewardGiven(memberId, jarN, true));
+  } else {
+    showConfirm('🚚 Not received yet?', 'Change ' + what + ' back to "on its way".', () => setRewardGiven(memberId, jarN, false));
+  }
 }
 // Settings → "Empty the jar and start again": the jar restarts at 0 from today (nothing is deleted).
 function restartJar(memberId) {
@@ -1273,6 +1334,7 @@ function renderTrend(m) {
   const box = document.getElementById('trend-' + m.id);
   if (!box) return;
   const jars = jarHistoryList(m).slice(-JAR_HISTORY_KEEP);
+  const waiting = jars.filter(rewardPending).length;
   const title = '<div class="trend-title"><span>Days to fill each jar</span>';
   if (jars.length === 0) {
     box.innerHTML = title + '</div><div class="trend-empty">Fill your first jar and this graph will show how many days it took. ⭐</div>';
@@ -1280,8 +1342,8 @@ function renderTrend(m) {
   }
   const vals = jars.map(j => Number(j.days) || 0);
   // Bar graph: one bar per finished jar, oldest on the left. Taller bar = took more days.
-  let W = 220, H = 82;
-  const L = 4, R = 4, T = 12, B = 13;
+  let W = 220, H = 96;
+  const L = 4, R = 4, T = 29, B = 13;   // room at the top for the 🎁 / 🚚 above each bar
   if (appMode === 'view' && document.body.classList.contains('single-child')) {
     // Fill the space the layout gives the graph: match the drawing's shape to its box.
     const bw = box.clientWidth, bh = box.clientHeight - 30;
@@ -1304,6 +1366,13 @@ function renderTrend(m) {
     const hgt = Math.max(1.5, base - top);
     svg += '<rect x="' + (cx - barW / 2).toFixed(1) + '" y="' + (base - hgt).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + hgt.toFixed(1) + '" rx="2.5" fill="' + m.color + '" style="' + (latest ? 'fill:var(--member, ' + m.color + ')' : 'fill:var(--member-dim, var(--member, ' + m.color + '));opacity:var(--bar-dim, 0.55)') + '"/>';
     svg += '<text x="' + cx.toFixed(1) + '" y="' + (base - hgt - 3).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="700" style="fill:var(--ink)">' + (n > 1 && v === best ? '⭐' : '') + v + '</text>';
+    // reward status: 🎁 received, 🚚 on its way (with a soft dashed ring so it stands out)
+    const pend = rewardPending(jars[i]);
+    const iy = base - hgt - 17;
+    if (pend) svg += '<circle class="trend-pending-ring" cx="' + cx.toFixed(1) + '" cy="' + (iy - 3.5).toFixed(1) + '" r="7.5" fill="none" stroke-width="1.2" stroke-dasharray="2.2 1.8" style="stroke:var(--mustard)"/>';
+    svg += '<text x="' + cx.toFixed(1) + '" y="' + iy.toFixed(1) + '" text-anchor="middle" font-size="' + (pend ? 10 : 9) + '">' + (pend ? '🚚' : '🎁') + '</text>';
+    // parents can tap a bar to change its reward status
+    if (appMode === 'edit') svg += '<rect class="trend-hit" data-n="' + jars[i].n + '" x="' + (cx - slot / 2).toFixed(1) + '" y="0" width="' + slot.toFixed(1) + '" height="' + H + '" fill="transparent"><title>' + (pend ? 'Tap when the reward has been given' : 'Reward received' + (jars[i].givenOn ? ' ' + escapeHtml(jars[i].givenOn) : '')) + '</title></rect>';
     const lab = String(jars[i].earned || '');
     const parts = lab.split(' ');
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1311,7 +1380,9 @@ function renderTrend(m) {
     svg += '<text x="' + cx.toFixed(1) + '" y="' + (H - 3) + '" text-anchor="middle" font-size="7.5" style="fill:var(--ink-soft)">' + escapeHtml(n > 5 ? short : lab) + '</text>';
   });
   svg += '</svg>';
-  box.innerHTML = title + '</div>' + svg;
+  const hint = appMode === 'edit' && waiting ? '<div class="trend-hint">Tap the 🚚 bar once the reward has been given.</div>' : '';
+  box.innerHTML = title + '</div>' + svg + hint;
+  box.querySelectorAll('.trend-hit').forEach(r => r.addEventListener('click', () => askRewardGiven(m.id, Number(r.dataset.n))));
 }
 
 // Moves the chart on one day. After Sunday it simply rolls into Monday of the next week — nothing resets.
@@ -2315,8 +2386,11 @@ function runConfetti(canvas, ms) {
   })(start);
 }
 
-function celebrateJarFull(m) {
-  if (document.querySelector('.celebrate')) return;
+// The celebration that's showing on this phone right now (if any), so a close on another phone can close it here too.
+let openCelebration = null;
+const CELEBRATE_AUTO_CLOSE_MS = 60000;   // closes by itself after a minute if nobody taps it
+function celebrateJarFull(m, onClose, jarN) {
+  if (document.querySelector('.celebrate')) { if (onClose) onClose(); return; }
   const wrap = document.createElement('div');
   wrap.className = 'celebrate';
   wrap.setAttribute('role', 'dialog');
@@ -2329,8 +2403,23 @@ function celebrateJarFull(m) {
     (m.reward ? '<div class="celebrate-reward">🎁 ' + escapeHtml(m.reward) + '</div>' : '') +
     '<button type="button" class="celebrate-btn">Yay! 🎉</button></div>';
   document.body.appendChild(wrap);
-  const close = () => { wrap.classList.remove('show'); setTimeout(() => wrap.remove(), 320); };
-  wrap.querySelector('.celebrate-btn').addEventListener('click', close);
+  let closed = false;
+  const close = (tellOthers) => {
+    if (closed) return;
+    closed = true;
+    if (openCelebration && openCelebration.wrap === wrap) openCelebration = null;
+    clearTimeout(autoClose);
+    // Closed here by a tap → tell the other phones/iPads, so the lounge room screen follows along
+    if (tellOthers && jarN) {
+      const mm = getMember(m.id);
+      if (mm) { mm.celebrateClosed = { jar: jarN, at: Date.now() }; saveState(); }
+    }
+    wrap.classList.remove('show');
+    setTimeout(() => { wrap.remove(); if (onClose) onClose(); }, 320);
+  };
+  const autoClose = setTimeout(() => close(false), CELEBRATE_AUTO_CLOSE_MS);
+  openCelebration = { id: m.id, jarN, openedAt: Date.now(), wrap, close };
+  wrap.querySelector('.celebrate-btn').addEventListener('click', () => close(true));
   requestAnimationFrame(() => {
     wrap.classList.add('show');
     if (!motionCalm()) runConfetti(wrap.querySelector('canvas'), 5200);
@@ -2447,24 +2536,34 @@ function showNewJarBadge(vis, m) {
   a.onfinish = () => b.remove();
 }
 
-// Called for each child on every redraw: starts the celebration or the new-jar animation when it's due.
+// Called for each child on every redraw. When a new jar has started since this phone last looked
+// (the old one filled up), it plays: jar fills to the top → "JAR FULL!" celebration → when that's
+// closed, the jar tips out and comes back empty. Each phone/iPad plays it once per jar.
 const jarMomentsBusy = {};
-function checkJarMoments(m, earned) {
+const jarHeldFull = {};
+function checkJarMoments(m) {
+  // Someone closed this celebration on another phone/iPad → close it here too.
+  // (Only a close made after this one opened counts, give or take a couple of seconds for clocks.)
+  const oc = openCelebration, cc = m.celebrateClosed;
+  if (oc && oc.id === m.id && cc && Number(cc.jar) >= oc.jarN && Number(cc.at) >= oc.openedAt - 3000) oc.close(false);
   const n = (m.jar && m.jar.n) || 1;
   const seen = Number(readLocal(seenJarKey(m)));
-  if (!seen) writeLocal(seenJarKey(m), n);
-  else if (n > seen) {
-    writeLocal(seenJarKey(m), n);
-    if (!jarMomentsBusy[m.id]) {
-      jarMomentsBusy[m.id] = true;
-      setTimeout(() => { playJarReset(m); setTimeout(() => { jarMomentsBusy[m.id] = false; }, 2600); }, 60);
-    }
-    return;
-  }
-  if (earned && Number(readLocal(celebratedKey(m))) !== n && !jarMomentsBusy[m.id]) {
-    writeLocal(celebratedKey(m), n);
-    setTimeout(() => celebrateJarFull(m), 700);   // let the jar finish filling up first
-  }
+  if (!seen) { writeLocal(seenJarKey(m), n); return; }
+  if (n <= seen || jarMomentsBusy[m.id]) return;
+  writeLocal(seenJarKey(m), n);
+  jarMomentsBusy[m.id] = true;
+  const finished = n - 1;
+  const tipOut = () => {
+    jarHeldFull[m.id] = false;
+    renderJars();
+    playJarReset(m);
+    setTimeout(() => { jarMomentsBusy[m.id] = false; }, 2600);
+  };
+  if (Number(readLocal(celebratedKey(m))) >= finished) { setTimeout(tipOut, 60); return; }   // already celebrated here
+  writeLocal(celebratedKey(m), finished);
+  jarHeldFull[m.id] = true;
+  setTimeout(() => renderJars(), 0);                          // draw the jar full first…
+  setTimeout(() => celebrateJarFull(m, tipOut, finished), 700);   // …then the big celebration
 }
 
 function jarSkeleton(m) {
@@ -2563,15 +2662,17 @@ function renderJars() {
     const total = jarPoints(m);
     const net = Math.max(0, total);
     const rawPct = m.weeklyGoal > 0 ? (net / m.weeklyGoal) : 0;
-    const pct = jarFull(total, m.weeklyGoal) ? 1 : Math.min(0.99, rawPct);
-    const earned = jarFull(total, m.weeklyGoal);
+    // While the "JAR FULL!" celebration is showing, the jar is drawn full; it tips out when that's closed.
+    const held = !!jarHeldFull[m.id];
+    const pct = held ? 1 : Math.min(0.99, rawPct);
+    const earned = held;
     const offset = Math.round(76 * (1 - pct));
 
     const liquid = document.getElementById('liquid-' + m.id);
     if (liquid) liquid.style.transform = 'translateY(' + offset + 'px)';
 
     const pctEl = document.getElementById('pct-' + m.id);
-    if (pctEl) pctEl.textContent = Math.round(rawPct * 100) + '%';
+    if (pctEl) pctEl.textContent = (held ? 100 : Math.min(99, Math.round(rawPct * 100))) + '%';
 
     const encourageEl = document.getElementById('encourage-' + m.id);
     if (encourageEl) encourageEl.textContent = getEncouragement(m.id, pct);
@@ -2579,19 +2680,21 @@ function renderJars() {
     const block = document.querySelector('.jar-block[data-member="' + m.id + '"]');
     if (block) block.classList.toggle('full', earned);
 
+    // Banner under the name: the reward is on its way until a parent marks it received.
     const rewardEl = document.getElementById('reward-' + m.id);
+    const waiting = pendingRewards(m).length > 0;
     if (rewardEl) {
-      if (earned) {
+      if (waiting) {
         const justEarned = !previouslyEarned[m.id];
         rewardEl.style.display = 'block';
-        rewardEl.textContent = '🏆 Reward earned! 🎉';
+        rewardEl.textContent = '🚚 Reward on its way!';
         rewardEl.classList.toggle('pop', justEarned);
       } else {
         rewardEl.style.display = 'none';
       }
     }
-    previouslyEarned[m.id] = earned;
-    checkJarMoments(m, earned);
+    previouslyEarned[m.id] = waiting;
+    checkJarMoments(m);
 
     // Rolling strip: the last 7 days, ending with the chart's current day.
     let strip = '';
@@ -2658,6 +2761,7 @@ function updateEditSubView() {
 
 function render() {
   if (!state) return;
+  autoRollJars();
   if (document.body.classList.contains('stats-open')) setTimeout(renderStats, 0);
     document.getElementById('familyName').value = state.familyName;
     applyLook();
@@ -2702,17 +2806,14 @@ function render() {
 
   const rewardWrap = document.getElementById('rewardGivenWrap');
   if (rewardWrap) {
-    const full = state.members.filter(m => jarFull(jarPoints(m), m.weeklyGoal));
-    rewardWrap.innerHTML = full.map(m =>
-      '<button class="action special reward-given-btn" data-id="' + m.id + '" style="width:100%; margin-bottom:12px;">🎁 ' +
-      escapeHtml(m.name) + "'s reward given — start a new jar</button>").join('');
-    rewardWrap.querySelectorAll('.reward-given-btn').forEach(btn => btn.addEventListener('click', () => {
-      const m = getMember(btn.dataset.id);
-      const extra = Math.round((jarPoints(m) - m.weeklyGoal) * 10) / 10;
-      showConfirm('Start a new jar for ' + m.name + '?',
-        'Only do this once the reward has been given.' + (extra > 0 ? ' ' + m.name + "'s " + extra + ' extra star' + (extra === 1 ? '' : 's') + ' will carry over into the new jar.' : ''),
-        () => giveReward(m.id));
+    // One button per reward that's still on its way
+    let html = '';
+    state.members.forEach(m => pendingRewards(m).forEach(j => {
+      html += '<button class="action special reward-given-btn" data-id="' + m.id + '" data-n="' + j.n + '" style="width:100%; margin-bottom:12px;">🎁 ' +
+        escapeHtml(m.name) + "'s reward received" + (j.reward ? ' — ' + escapeHtml(j.reward) : '') + '</button>';
     }));
+    rewardWrap.innerHTML = html;
+    rewardWrap.querySelectorAll('.reward-given-btn').forEach(btn => btn.addEventListener('click', () => askRewardGiven(btn.dataset.id, Number(btn.dataset.n))));
   }
 
   const smileyRow = document.getElementById('smileyRow');
