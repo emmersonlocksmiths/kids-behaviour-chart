@@ -678,6 +678,48 @@
   body.is-wide .stats-dots { display: flex; justify-content: center; gap: 8px; flex: 0 0 auto; }
   .stats-dots button { width: 9px; height: 9px; border-radius: 50%; border: none; padding: 0; background: var(--line); cursor: pointer; }
   .stats-dots button[aria-current="true"] { background: var(--sage); transform: scale(1.25); }
+
+  /* ===================== Jar full: the big celebration ===================== */
+  .celebrate { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px;
+    background: radial-gradient(circle at 50% 45%, rgba(255, 214, 102, 0.35), rgba(20, 16, 8, 0.72) 70%);
+    opacity: 0; transition: opacity 0.3s ease; }
+  .celebrate.show { opacity: 1; }
+  .celebrate canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .celebrate .rays { position: absolute; left: 50%; top: 45%; width: 190vmax; height: 190vmax; margin: -95vmax 0 0 -95vmax; pointer-events: none;
+    background: repeating-conic-gradient(rgba(255, 220, 120, 0.22) 0 9deg, transparent 9deg 22.5deg); border-radius: 50%;
+    -webkit-mask-image: radial-gradient(circle, #000 0, transparent 55%); mask-image: radial-gradient(circle, #000 0, transparent 55%);
+    animation: raysSpin 14s linear infinite; }
+  @keyframes raysSpin { to { transform: rotate(360deg); } }
+  .celebrate-card { position: relative; z-index: 2; text-align: center; background: var(--card); color: var(--ink);
+    border-radius: 28px; padding: 26px 26px 22px; max-width: 340px; width: 100%;
+    box-shadow: 0 0 0 5px var(--mustard), 0 24px 60px rgba(0, 0, 0, 0.45);
+    transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  .celebrate.show .celebrate-card { animation: cardBoom 0.75s cubic-bezier(.34,1.56,.64,1) 0.15s forwards; }
+  @keyframes cardBoom { to { transform: none; opacity: 1; } }
+  .celebrate-trophy { font-size: 88px; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 10px rgba(227, 167, 47, 0.55)); }
+  .celebrate.show .celebrate-trophy { animation: trophyHop 1.1s ease-in-out 0.8s infinite; }
+  @keyframes trophyHop { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-16px) rotate(-8deg); } 60% { transform: translateY(0) rotate(6deg); } }
+  .celebrate-title { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1.05; margin: 10px 0 6px; color: var(--mustard); letter-spacing: 0.01em; }
+  .celebrate-title span { display: inline-block; opacity: 0; transform: translateY(18px) scale(0.6); }
+  .celebrate.show .celebrate-title span { animation: letterPop 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes letterPop { to { opacity: 1; transform: none; } }
+  .celebrate-who { font-size: 18px; font-weight: 700; }
+  .celebrate-reward { margin: 12px auto 0; display: inline-block; font-weight: 800; font-size: 16px; padding: 8px 14px; border-radius: 14px;
+    background: var(--mustard-light); color: var(--ink); }
+  .celebrate-btn { margin-top: 18px; width: 100%; border: none; border-radius: 16px; padding: 14px; font: 700 18px var(--font-display);
+    background: var(--mustard); color: var(--on-accent); box-shadow: 0 4px 0 var(--mustard-shadow); cursor: pointer; }
+  .celebrate-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--mustard-shadow); }
+
+  /* ===================== New jar: the emptying animation ===================== */
+  .reset-star { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 7; line-height: 1;
+    filter: drop-shadow(0 0 5px rgba(240, 180, 41, 0.8)); will-change: transform, opacity; }
+  .new-jar-badge { position: absolute; left: 50%; top: 42%; z-index: 8; white-space: nowrap; pointer-events: none;
+    font: 700 15px var(--font-display); padding: 6px 12px; border-radius: 999px; background: var(--sage); color: var(--on-accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); transform: translateX(-50%); }
+  @media (prefers-reduced-motion: reduce) {
+    .celebrate .rays, .celebrate.show .celebrate-trophy { animation: none; }
+    .celebrate.show .celebrate-card, .celebrate.show .celebrate-title span { animation-duration: 0.01s; animation-delay: 0s; }
+  }
 </style>
 </head>
 <body>
@@ -1000,7 +1042,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -2205,6 +2247,226 @@ function attachLongPress(el, onLongPress) {
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
+// ===================== Jar full: confetti, fanfare and a big "JAR FULL!" =====================
+// It plays once per jar on each phone/iPad: when the jar reaches 100%, or the next time the app is opened
+// if the last star was added on another device.
+function celebratedKey(m) { return 'starJarCelebrated:' + m.id; }
+function seenJarKey(m) { return 'starJarSeenJar:' + m.id; }
+function readLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function writeLocal(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+const motionCalm = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function playFanfare() {
+  playCheerSound();
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + 0.95;
+    // a quick sparkly run up, then a big happy chord
+    [1046.5, 1174.66, 1318.51, 1567.98, 1760, 2093].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const s = t0 + i * 0.06;
+      g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.12, s + 0.01); g.gain.exponentialRampToValueAtTime(0.001, s + 0.25);
+      o.connect(g); g.connect(ctx.destination); o.start(s); o.stop(s + 0.3);
+    });
+    const c = t0 + 0.45;
+    [523.25, 659.25, 783.99, 1046.5].forEach(f => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, c); g.gain.linearRampToValueAtTime(0.16, c + 0.03); g.gain.exponentialRampToValueAtTime(0.001, c + 1.4);
+      o.connect(g); g.connect(ctx.destination); o.start(c); o.stop(c + 1.5);
+    });
+  } catch (e) {}
+}
+
+function runConfetti(canvas, ms) {
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr; ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.body);
+  const cols = ['--mustard', '--sage', '--clay', '--good', '--jar-fill', '--member'].map(v => css.getPropertyValue(v).trim()).filter(Boolean).concat(['#4E9BFF', '#FF6FB1']);
+  const parts = [];
+  const burst = (x, y, n, spread, up) => {
+    for (let i = 0; i < n; i++) {
+      const a = (-90 + (Math.random() - 0.5) * spread) * Math.PI / 180, v = up * (0.6 + Math.random() * 0.6);
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 6 + Math.random() * 7, h: 4 + Math.random() * 5,
+        r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3, c: cols[i % cols.length], star: Math.random() < 0.18, life: 0 });
+    }
+  };
+  burst(W * 0.5, H * 0.55, 120, 110, Math.max(H, 500) * 0.028);
+  setTimeout(() => { burst(-10, H * 0.8, 60, 50, H * 0.026); parts.slice(-60).forEach(p => { p.vx = Math.abs(p.vx) + 4; }); }, 350);
+  setTimeout(() => { burst(W + 10, H * 0.8, 60, 50, H * 0.026); parts.slice(-60).forEach(p => { p.vx = -Math.abs(p.vx) - 4; }); }, 650);
+  const start = performance.now();
+  (function frame(now) {
+    if (!canvas.isConnected) return;
+    const t = now - start;
+    ctx.clearRect(0, 0, W, H);
+    for (const p of parts) {
+      p.vy += 0.32; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+      ctx.globalAlpha = Math.max(0, Math.min(1, (ms - t) / 600));
+      if (p.star) { ctx.font = (p.w * 2.2) + 'px serif'; ctx.fillText('⭐', -p.w, p.w); }
+      else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 1.7)) + 1);
+      ctx.restore();
+    }
+    if (t < ms) requestAnimationFrame(frame); else ctx.clearRect(0, 0, W, H);
+  })(start);
+}
+
+function celebrateJarFull(m) {
+  if (document.querySelector('.celebrate')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'celebrate';
+  wrap.setAttribute('role', 'dialog');
+  wrap.setAttribute('aria-label', 'Jar full');
+  const title = 'JAR FULL!'.split('').map((ch, i) => '<span style="animation-delay:' + (0.55 + i * 0.06).toFixed(2) + 's">' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+  wrap.innerHTML = '<div class="rays"></div><canvas></canvas>' +
+    '<div class="celebrate-card"><div class="celebrate-trophy">🏆</div>' +
+    '<div class="celebrate-title">' + title + '</div>' +
+    '<div class="celebrate-who">Amazing, ' + escapeHtml(m.name) + '! You filled the whole jar! ⭐</div>' +
+    (m.reward ? '<div class="celebrate-reward">🎁 ' + escapeHtml(m.reward) + '</div>' : '') +
+    '<button type="button" class="celebrate-btn">Yay! 🎉</button></div>';
+  document.body.appendChild(wrap);
+  const close = () => { wrap.classList.remove('show'); setTimeout(() => wrap.remove(), 320); };
+  wrap.querySelector('.celebrate-btn').addEventListener('click', close);
+  requestAnimationFrame(() => {
+    wrap.classList.add('show');
+    if (!motionCalm()) runConfetti(wrap.querySelector('canvas'), 5200);
+  });
+  playFanfare();
+  try { if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 140]); } catch (e) {}
+  // a second shower of confetti while it's still up
+  setTimeout(() => { if (wrap.isConnected && !motionCalm()) runConfetti(wrap.querySelector('canvas'), 4200); }, 5600);
+}
+
+// ===================== New jar: the full jar tips over, pours its stars out, and comes back empty =====================
+function playPourSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const t0 = ctx.currentTime + 0.45;
+    // tumbling twinkles going down…
+    for (let i = 0; i < 9; i++) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 1900 - i * 150 + (i % 2) * 90;
+      const s = t0 + i * 0.075;
+      g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.09, s + 0.01); g.gain.exponentialRampToValueAtTime(0.001, s + 0.18);
+      o.connect(g); g.connect(ctx.destination); o.start(s); o.stop(s + 0.2);
+    }
+    // …then a bright "ding" as the new jar appears
+    const d = ctx.currentTime + 2.05;
+    [880, 1318.51].forEach(f => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, d); g.gain.linearRampToValueAtTime(0.15, d + 0.02); g.gain.exponentialRampToValueAtTime(0.001, d + 0.9);
+      o.connect(g); g.connect(ctx.destination); o.start(d); o.stop(d + 1);
+    });
+  } catch (e) {}
+}
+
+function playJarReset(m) {
+  const block = document.querySelector('.jar-block[data-member="' + m.id + '"]');
+  const vis = block && block.querySelector('.jar-visual');
+  const svg = vis && vis.querySelector('.jar-svg');
+  const liquid = document.getElementById('liquid-' + m.id);
+  const lid = document.getElementById('lid-' + m.id);
+  if (!svg || !liquid || typeof svg.animate !== 'function') return;
+  const endLevel = liquid.style.transform || 'translateY(76px)';
+  playPourSound();
+  if (motionCalm()) { showNewJarBadge(vis, m); return; }
+  const k = svg.getBoundingClientRect().width / 112 || 1;   // the jar is bigger on the kids' page
+  liquid.style.transition = 'none';
+  svg.style.transformOrigin = '50% 55%';   // tips over around its middle, mouth down to the right
+  lid.style.transformBox = 'fill-box';
+  lid.style.transformOrigin = '50% 100%';
+  // 1. lid pops off, 2. jar tips over and empties, 3. jar stands back up, empty
+  lid.animate([
+    { transform: 'none', opacity: 1 },
+    { transform: 'translate(-4px, -22px) rotate(-18deg)', opacity: 1, offset: 0.12 },
+    { transform: 'translate(-8px, -28px) rotate(-22deg)', opacity: 0.9, offset: 0.62 },
+    { transform: 'translate(0, -8px) rotate(5deg)', opacity: 1, offset: 0.82 },
+    { transform: 'none', opacity: 1 }
+  ], { duration: 2400, easing: 'ease-in-out' });
+  svg.animate([
+    { transform: 'none' },
+    { transform: 'translateY(-4px) rotate(-6deg)', offset: 0.1 },
+    { transform: 'rotate(120deg)', offset: 0.3 },
+    { transform: 'rotate(112deg)', offset: 0.45 },
+    { transform: 'rotate(124deg)', offset: 0.6 },
+    { transform: 'rotate(-10deg)', offset: 0.8 },
+    { transform: 'rotate(4deg)', offset: 0.9 },
+    { transform: 'none' }
+  ], { duration: 2400, easing: 'cubic-bezier(.45,0,.3,1)' });
+  liquid.animate([
+    { transform: 'translateY(0px)' },
+    { transform: 'translateY(0px)', offset: 0.25 },
+    { transform: 'translateY(76px)', offset: 0.62 },
+    { transform: 'translateY(76px)', offset: 0.8 },
+    { transform: endLevel }
+  ], { duration: 2400, easing: 'ease-in-out' });
+  // the stars spill out of the mouth of the jar in an arc and tumble down
+  const box = vis.getBoundingClientRect(), sr = svg.getBoundingClientRect();
+  // where the jar's mouth ends up once it has tipped 120° around its middle
+  const mouthX = sr.left - box.left + sr.width / 2 + sr.height * 0.37, mouthY = sr.top - box.top + sr.height * 0.77;
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement('span');
+    s.className = 'reset-star';
+    s.textContent = i % 5 === 2 ? '✨' : '⭐';
+    s.style.fontSize = Math.round((14 + Math.random() * 14) * k) + 'px';
+    vis.appendChild(s);
+    const dx = (40 + Math.random() * 110) * k, up = (20 + Math.random() * 50) * k, fall = (90 + Math.random() * 90) * k;
+    const spin = (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 300);
+    const a = s.animate([
+      { transform: 'translate(' + mouthX + 'px,' + mouthY + 'px) scale(0.3) rotate(0deg)', opacity: 0 },
+      { transform: 'translate(' + (mouthX + dx * 0.45) + 'px,' + (mouthY - up) + 'px) scale(1.1) rotate(' + spin * 0.4 + 'deg)', opacity: 1, offset: 0.35 },
+      { transform: 'translate(' + (mouthX + dx) + 'px,' + (mouthY + fall) + 'px) scale(0.7) rotate(' + spin + 'deg)', opacity: 0 }
+    ], { duration: 1100 + Math.random() * 400, delay: 650 + i * 45, easing: 'cubic-bezier(.3,.6,.5,1)', fill: 'backwards' });
+    a.onfinish = () => s.remove();
+  }
+  setTimeout(() => {
+    liquid.style.transition = '';
+    svg.style.transformOrigin = '';
+    if (svg.animate) svg.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(0.97)' }, { transform: 'scale(1)' }], { duration: 450, easing: 'ease-out' });
+    showNewJarBadge(vis, m);
+  }, 2400);
+}
+function showNewJarBadge(vis, m) {
+  const b = document.createElement('div');
+  b.className = 'new-jar-badge';
+  b.textContent = 'Jar ' + (m.jar && m.jar.n || 1) + ' — let\'s go! ✨';
+  vis.appendChild(b);
+  const a = b.animate([
+    { transform: 'translateX(-50%) translateY(10px) scale(0.4)', opacity: 0 },
+    { transform: 'translateX(-50%) translateY(-6px) scale(1.08)', opacity: 1, offset: 0.12 },
+    { transform: 'translateX(-50%) translateY(-6px) scale(1)', opacity: 1, offset: 0.85 },
+    { transform: 'translateX(-50%) translateY(-18px) scale(0.9)', opacity: 0 }
+  ], { duration: 2800, easing: 'ease-out' });
+  a.onfinish = () => b.remove();
+}
+
+// Called for each child on every redraw: starts the celebration or the new-jar animation when it's due.
+const jarMomentsBusy = {};
+function checkJarMoments(m, earned) {
+  const n = (m.jar && m.jar.n) || 1;
+  const seen = Number(readLocal(seenJarKey(m)));
+  if (!seen) writeLocal(seenJarKey(m), n);
+  else if (n > seen) {
+    writeLocal(seenJarKey(m), n);
+    if (!jarMomentsBusy[m.id]) {
+      jarMomentsBusy[m.id] = true;
+      setTimeout(() => { playJarReset(m); setTimeout(() => { jarMomentsBusy[m.id] = false; }, 2600); }, 60);
+    }
+    return;
+  }
+  if (earned && Number(readLocal(celebratedKey(m))) !== n && !jarMomentsBusy[m.id]) {
+    writeLocal(celebratedKey(m), n);
+    setTimeout(() => celebrateJarFull(m), 700);   // let the jar finish filling up first
+  }
+}
+
 function jarSkeleton(m) {
   const clipId = 'clip-' + m.id;
   return '<div class="jar-block" data-member="' + m.id + '">' +
@@ -2324,12 +2586,12 @@ function renderJars() {
         rewardEl.style.display = 'block';
         rewardEl.textContent = '🏆 Reward earned! 🎉';
         rewardEl.classList.toggle('pop', justEarned);
-        if (justEarned) playCheerSound();
       } else {
         rewardEl.style.display = 'none';
       }
     }
     previouslyEarned[m.id] = earned;
+    checkJarMoments(m, earned);
 
     // Rolling strip: the last 7 days, ending with the chart's current day.
     let strip = '';
