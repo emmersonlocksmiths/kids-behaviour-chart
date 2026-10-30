@@ -1062,7 +1062,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.10';
+const APP_VERSION = '2.11';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -1238,16 +1238,11 @@ function isDayInCurrentJar(m, off, d) {
 //  • The reward for that jar starts as "on its way" (🚚). A parent marks it received (🎁) whenever
 //    it's actually been given — from the bar graph or from Today's log.
 function rewardPending(j) { return j && j.given === false; }   // older jars (from before this) count as received
-function pendingRewards(m) { return jarHistoryList(m).filter(rewardPending); }
-
-// Records a full jar and starts the next one. Returns true if it rolled over.
-function rollJar(m) {
+// When did the current jar reach 100%, and how many days did that take? (null if it isn't full)
+function jarFillStats(m) {
   ensureJar(m);
   const goal = m.weeklyGoal || 0;
-  const total = jarPoints(m);
-  if (!jarFull(total, goal)) return false;
-  const hist = jarHistoryList(m);
-  // find the day the jar first reached 100%, and how many days that took
+  if (!jarFull(jarPoints(m), goal)) return null;
   let running = Number(m.jar.carry) || 0, fullMs = null, fullLabel = '', days = 0;
   forEachJarDay(m, (off, d) => {
     if (fullMs !== null) return;
@@ -1256,8 +1251,35 @@ function rollJar(m) {
     if (jarFull(running, goal)) { fullMs = dayStartMs(off, d); fullLabel = shortDate(off, d); }
   });
   if (fullMs === null) { fullMs = dayStartMs(0, getCurrentDay()); fullLabel = shortDate(0, getCurrentDay()); days = jarDays(m); }
-  hist.push({ n: m.jar.n || 1, days: Math.max(1, days), points: total, goal, earned: fullLabel, fullMs, given: false,
-    prevJar: { startWeekMs: m.jar.startWeekMs, startDay: m.jar.startDay || 0, carry: Number(m.jar.carry) || 0 } });
+  return { days: Math.max(1, days), fullMs, fullLabel };
+}
+// The full jar that hasn't been emptied yet, shaped like a finished jar so it can go on the bar graph.
+function currentFullJar(m) {
+  const st = jarFillStats(m);
+  if (!st) return null;
+  return { n: m.jar.n || 1, days: st.days, earned: st.fullLabel, fullMs: st.fullMs, current: true,
+    given: !!m.jar.rewardGiven, givenOn: m.jar.rewardGivenOn };
+}
+// Every jar on the bar graph: finished ones, plus the current one as soon as it reaches 100%.
+function graphJars(m) {
+  const cur = currentFullJar(m);
+  return cur ? jarHistoryList(m).concat([cur]) : jarHistoryList(m);
+}
+function pendingRewards(m) { return graphJars(m).filter(rewardPending); }
+
+// Records a full jar and starts the next one. Returns true if it rolled over.
+function rollJar(m) {
+  ensureJar(m);
+  const goal = m.weeklyGoal || 0;
+  const total = jarPoints(m);
+  if (!jarFull(total, goal)) return false;
+  const hist = jarHistoryList(m);
+  const st = jarFillStats(m);   // the day the jar first reached 100%, and how many days that took
+  const entry = { n: m.jar.n || 1, days: st.days, points: total, goal, earned: st.fullLabel, fullMs: st.fullMs,
+    given: !!m.jar.rewardGiven,   // the reward may already have been marked received while the jar was full
+    prevJar: { startWeekMs: m.jar.startWeekMs, startDay: m.jar.startDay || 0, carry: Number(m.jar.carry) || 0 } };
+  if (m.jar.rewardGivenOn) entry.givenOn = m.jar.rewardGivenOn;
+  hist.push(entry);
   // keep the graph to the last few jars, but never drop a reward that hasn't been given yet
   while (hist.length > JAR_HISTORY_KEEP) {
     const i = hist.findIndex(j => !rewardPending(j));
@@ -1327,6 +1349,7 @@ function undoNewJar(memberId) {
   const hist = jarHistoryList(m).filter(j => j !== last);
   m.jarHistory = hist;
   m.jar = { startWeekMs: prev.startWeekMs, startDay: prev.startDay || 0, carry: Number(prev.carry) || 0, n: last.n, again: Date.now() };
+  if (last.given === true) { m.jar.rewardGiven = true; if (last.givenOn) m.jar.rewardGivenOn = last.givenOn; }
   encouragementCache = {};
   saveState();
   render();
@@ -1336,19 +1359,26 @@ function undoNewJar(memberId) {
 function setRewardGiven(memberId, jarN, given) {
   const m = getMember(memberId);
   if (!m) return;
-  const hist = jarHistoryList(m);
-  const j = hist.find(x => x.n === jarN);
-  if (!j) return;
-  j.given = !!given;
-  if (given) j.givenOn = shortDate(0, getCurrentDay()); else delete j.givenOn;
-  m.jarHistory = hist;
+  ensureJar(m);
+  if (jarN === (m.jar.n || 1)) {
+    // the current jar: full, not emptied yet
+    if (given) { m.jar.rewardGiven = true; m.jar.rewardGivenOn = shortDate(0, getCurrentDay()); }
+    else { delete m.jar.rewardGiven; delete m.jar.rewardGivenOn; }
+  } else {
+    const hist = jarHistoryList(m);
+    const j = hist.find(x => x.n === jarN);
+    if (!j) return;
+    j.given = !!given;
+    if (given) j.givenOn = shortDate(0, getCurrentDay()); else delete j.givenOn;
+    m.jarHistory = hist;
+  }
   saveState();
   render();
   showToast(given ? '🎁 ' + m.name + "'s reward marked as received." : '🚚 Back to "on its way".');
 }
 function askRewardGiven(memberId, jarN) {
   const m = getMember(memberId);
-  const j = m && jarHistoryList(m).find(x => x.n === jarN);
+  const j = m && graphJars(m).find(x => x.n === jarN);
   if (!j) return;
   const what = 'Jar ' + j.n + ', filled ' + (j.earned || '');
   if (rewardPending(j)) {
@@ -1386,7 +1416,7 @@ function pruneOldLogs() {
 function renderTrend(m) {
   const box = document.getElementById('trend-' + m.id);
   if (!box) return;
-  const jars = jarHistoryList(m).slice(-JAR_HISTORY_KEEP);
+  const jars = graphJars(m).slice(-JAR_HISTORY_KEEP);
   const waiting = jars.filter(rewardPending).length;
   const title = '<div class="trend-title"><span>Days to fill each jar</span>';
   if (jars.length === 0) {
