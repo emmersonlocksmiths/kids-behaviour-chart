@@ -1062,7 +1062,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.9';
+const APP_VERSION = '2.10';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -2583,10 +2583,11 @@ function showNewJarBadge(vis, m) {
 }
 
 // Called for each child on every redraw.
-//  • Jar reaches 100% → it stays full and "JAR FULL!" plays (once per jar on each phone/iPad), then
+//  • Jar reaches 100% → it stays full and "JAR FULL!" plays (every time it climbs to 100%), then
 //    goes back to the main screen by itself. Nothing on the kids page can be tapped.
 //  • Parent presses "Start new jar" → every phone plays the jar tipping out and coming back empty.
 const jarMomentsBusy = {};
+const jarWasFull = {};   // what this screen showed last time: full or not (unknown right after opening)
 function checkJarMoments(m) {
   const n = (m.jar && m.jar.n) || 1;
   const oc = openCelebration;
@@ -2599,9 +2600,16 @@ function checkJarMoments(m) {
       jarMomentsBusy[m.id] = true;
       setTimeout(() => { playJarReset(m); setTimeout(() => { jarMomentsBusy[m.id] = false; }, 2600); }, 380);
     }
+    jarWasFull[m.id] = false;
     return;
   }
-  if (jarFull(jarPoints(m), m.weeklyGoal) && readLocal(celebratedKey(m)) !== celebrationTag(m) && !jarMomentsBusy[m.id]) {
+  // Play it every time the jar climbs up to 100% (even if it dipped below and came back), and when the
+  // app opens on a full jar this screen hasn't celebrated yet.
+  const full = jarFull(jarPoints(m), m.weeklyGoal);
+  const climbedToFull = full && jarWasFull[m.id] === false;
+  const openedOnNewFullJar = full && jarWasFull[m.id] === undefined && readLocal(celebratedKey(m)) !== celebrationTag(m);
+  jarWasFull[m.id] = full;
+  if ((climbedToFull || openedOnNewFullJar) && !jarMomentsBusy[m.id]) {
     writeLocal(celebratedKey(m), celebrationTag(m));
     setTimeout(() => celebrateJarFull(m, null, n), 700);   // let the jar finish filling first
   }
