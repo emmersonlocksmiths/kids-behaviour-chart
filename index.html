@@ -1000,7 +1000,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -1155,6 +1155,9 @@ function forEachJarDay(m, fn) {
     for (let d = d0; d <= d1; d++) fn(off, d);
   }
 }
+// The jar counts as full as soon as it shows 100%. (Stars can be fractions, e.g. 59.7 of 60 shows "100%",
+// so this goes by the percentage on screen, not by the exact star count.)
+function jarFull(points, goal) { return goal > 0 && Math.round(Math.max(0, points) / goal * 100) >= 100; }
 function jarPoints(m) {
   let total = Number(m.jar && m.jar.carry) || 0;
   forEachJarDay(m, (off, d) => { total += computeDayPoints(m.id, d, off); });
@@ -1173,14 +1176,14 @@ function giveReward(memberId) {
   ensureJar(m);
   const goal = m.weeklyGoal || 0;
   const total = jarPoints(m);
-  if (goal <= 0 || total < goal) return;
+  if (!jarFull(total, goal)) return;
   const hist = jarHistoryList(m);
   // find the day the jar first reached 100%
   let running = Number(m.jar.carry) || 0, fullMs = null;
   forEachJarDay(m, (off, d) => {
     if (fullMs !== null) return;
     running += computeDayPoints(m.id, d, off);
-    if (running >= goal) fullMs = dayStartMs(off, d);
+    if (jarFull(running, goal)) fullMs = dayStartMs(off, d);
   });
   if (fullMs === null) fullMs = dayStartMs(0, getCurrentDay());
   hist.push({ n: m.jar.n || 1, days: jarDays(m), points: total, goal, reward: m.reward || '', earned: shortDate(0, getCurrentDay()), fullMs });
@@ -1189,7 +1192,7 @@ function giveReward(memberId) {
   // New jar starts today. Its carry is set so that it begins at exactly (total - goal), and any more
   // points logged later today still count toward it.
   const todayPts = computeDayPoints(m.id, getCurrentDay(), 0);
-  m.jar = { startWeekMs: getMonday(0).getTime(), startDay: getCurrentDay(), carry: Math.round((total - goal - todayPts) * 10) / 10, n: (m.jar.n || 1) + 1 };
+  m.jar = { startWeekMs: getMonday(0).getTime(), startDay: getCurrentDay(), carry: Math.round((Math.max(0, total - goal) - todayPts) * 10) / 10, n: (m.jar.n || 1) + 1 };
   previouslyEarned[m.id] = false;
   encouragementCache = {};
   pruneOldLogs();
@@ -2298,8 +2301,8 @@ function renderJars() {
     const total = jarPoints(m);
     const net = Math.max(0, total);
     const rawPct = m.weeklyGoal > 0 ? (net / m.weeklyGoal) : 0;
-    const pct = Math.min(1, rawPct);
-    const earned = total >= m.weeklyGoal && m.weeklyGoal > 0;
+    const pct = jarFull(total, m.weeklyGoal) ? 1 : Math.min(0.99, rawPct);
+    const earned = jarFull(total, m.weeklyGoal);
     const offset = Math.round(76 * (1 - pct));
 
     const liquid = document.getElementById('liquid-' + m.id);
@@ -2437,7 +2440,7 @@ function render() {
 
   const rewardWrap = document.getElementById('rewardGivenWrap');
   if (rewardWrap) {
-    const full = state.members.filter(m => m.weeklyGoal > 0 && jarPoints(m) >= m.weeklyGoal);
+    const full = state.members.filter(m => jarFull(jarPoints(m), m.weeklyGoal));
     rewardWrap.innerHTML = full.map(m =>
       '<button class="action special reward-given-btn" data-id="' + m.id + '" style="width:100%; margin-bottom:12px;">🎁 ' +
       escapeHtml(m.name) + "'s reward given — start a new jar</button>").join('');
@@ -2886,7 +2889,7 @@ function renderStats() {
     const left = m.weeklyGoal - jarPoints(m);
     const recent = days.slice(-14).filter(x => x.log);
     const rAvg = recent.length ? recent.reduce((a, x) => a + x.pts, 0) / recent.length : 0;
-    if (left > 0 && rAvg > 0) html += '<p class="stats-note">Parents only: at his recent pace (' + fmtNum(Math.round(rAvg * 10) / 10) + ' a day) the jar fills in about <b>' + Math.ceil(left / rAvg) + ' days</b>.</p>';
+    if (left > 0 && !jarFull(jarPoints(m), m.weeklyGoal) && rAvg > 0) html += '<p class="stats-note">Parents only: at his recent pace (' + fmtNum(Math.round(rAvg * 10) / 10) + ' a day) the jar fills in about <b>' + Math.ceil(left / rAvg) + ' days</b>.</p>';
   }
 
   html += '</div>';
