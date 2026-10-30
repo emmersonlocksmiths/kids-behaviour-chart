@@ -1062,7 +1062,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -1256,7 +1256,7 @@ function rollJar(m) {
     if (jarFull(running, goal)) { fullMs = dayStartMs(off, d); fullLabel = shortDate(off, d); }
   });
   if (fullMs === null) { fullMs = dayStartMs(0, getCurrentDay()); fullLabel = shortDate(0, getCurrentDay()); days = jarDays(m); }
-  hist.push({ n: m.jar.n || 1, days: Math.max(1, days), points: total, goal, reward: m.reward || '', earned: fullLabel, fullMs, given: false,
+  hist.push({ n: m.jar.n || 1, days: Math.max(1, days), points: total, goal, earned: fullLabel, fullMs, given: false,
     prevJar: { startWeekMs: m.jar.startWeekMs, startDay: m.jar.startDay || 0, carry: Number(m.jar.carry) || 0 } });
   // keep the graph to the last few jars, but never drop a reward that hasn't been given yet
   while (hist.length > JAR_HISTORY_KEEP) {
@@ -1351,11 +1351,11 @@ function askRewardGiven(memberId, jarN) {
   const m = getMember(memberId);
   const j = m && jarHistoryList(m).find(x => x.n === jarN);
   if (!j) return;
-  const what = (j.reward ? j.reward + ' · ' : '') + 'jar ' + j.n + ', filled ' + (j.earned || '');
+  const what = 'Jar ' + j.n + ', filled ' + (j.earned || '');
   if (rewardPending(j)) {
     showConfirm('🎁 ' + m.name + "'s reward received?", what + '.', () => setRewardGiven(memberId, jarN, true));
   } else {
-    showConfirm('🚚 Not received yet?', 'Change ' + what + ' back to "on its way".', () => setRewardGiven(memberId, jarN, false));
+    showConfirm('🚚 Not received yet?', 'The reward for jar ' + j.n + ' goes back to "on its way".', () => setRewardGiven(memberId, jarN, false));
   }
 }
 // Settings → "Empty the jar and start again": the jar restarts at 0 from today (nothing is deleted).
@@ -2457,7 +2457,7 @@ function celebrateJarFull(m, onClose, jarN) {
     '<div class="celebrate-card"><div class="celebrate-trophy">🏆</div>' +
     '<div class="celebrate-title">' + title + '</div>' +
     '<div class="celebrate-who">Amazing, ' + escapeHtml(m.name) + '! You filled the whole jar! ⭐</div>' +
-    (m.reward ? '<div class="celebrate-reward">🎁 ' + escapeHtml(m.reward) + '</div>' : '') +
+    '<div class="celebrate-reward">🎁 You\'ve earned a reward!</div>' +
     '<button type="button" class="celebrate-btn">Yay! 🎉</button></div>';
   document.body.appendChild(wrap);
   let closed = false;
@@ -2727,10 +2727,15 @@ function renderJars() {
     if (liquid) liquid.style.transform = 'translateY(' + offset + 'px)';
 
     const pctEl = document.getElementById('pct-' + m.id);
-    if (pctEl) pctEl.textContent = (earned ? 100 : Math.min(99, Math.round(rawPct * 100))) + '%';
+    // Once full, the number keeps counting past 100% (e.g. 112%); "Start new jar" takes off the 100
+    // and the new jar starts at whatever is left over.
+    if (pctEl) pctEl.textContent = (earned ? Math.max(100, Math.round(rawPct * 100)) : Math.min(99, Math.round(rawPct * 100))) + '%';
 
     const encourageEl = document.getElementById('encourage-' + m.id);
-    if (encourageEl) encourageEl.textContent = getEncouragement(m.id, pct);
+    const extraStars = earned ? Math.floor(total - m.weeklyGoal) : 0;
+    if (encourageEl) encourageEl.textContent = extraStars >= 1
+      ? '+' + extraStars + ' extra ⭐ for the next jar!'
+      : getEncouragement(m.id, pct);
 
     const block = document.querySelector('.jar-block[data-member="' + m.id + '"]');
     if (block) block.classList.toggle('full', earned);
@@ -2875,7 +2880,7 @@ function render() {
     });
     state.members.forEach(m => pendingRewards(m).forEach(j => {
       html += '<button class="action special reward-given-btn" data-id="' + m.id + '" data-n="' + j.n + '" style="width:100%; margin-bottom:12px;">🎁 ' +
-        escapeHtml(m.name) + "'s reward received" + (j.reward ? ' — ' + escapeHtml(j.reward) : '') + '</button>';
+        escapeHtml(m.name) + "'s reward received (jar " + j.n + ')</button>';
     }));
     rewardWrap.innerHTML = html;
     rewardWrap.querySelectorAll('.start-jar-btn').forEach(btn => btn.addEventListener('click', () => askStartNextJar(btn.dataset.id)));
