@@ -657,34 +657,34 @@
   .freq-cols { display: block; }
   .chart-scroll { overflow-x: auto; }
   .daily-svg { min-width: var(--minw, 0px); }
-  body.is-wide .stats-page { overflow: hidden; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px calc(6px + env(safe-area-inset-bottom, 0px)); }
-  body.is-wide .stats-inner { max-width: none; height: 100%; gap: 6px; }
-  body.is-wide .stats-head { flex: 0 0 auto; flex-wrap: nowrap; gap: 8px; }
-  body.is-wide .stats-head h2 { font-size: clamp(16px, calc(var(--vh, 1vh) * 5), 24px); }
-  body.is-wide .stats-back, body.is-wide .stats-range button { padding: 5px 11px; font-size: 12px; }
-  body.is-wide #statsBody { flex: 1 1 auto; min-height: 0; overflow: hidden; display: block; }
-  body.is-wide .stats-track { flex-direction: row; gap: 0; height: 100%; transition: transform 0.35s cubic-bezier(.2,.8,.2,1); }
-  body.is-wide .stats-slide { flex: 0 0 100%; height: 100%; min-width: 0; padding: 2px 3px 4px; display: grid; gap: 10px; }
-  body.is-wide .stats-slide.s1 { grid-template-rows: minmax(0, 1fr) auto; }
-  body.is-wide .s1 .stats-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); height: 100%; min-height: 0; }
-  body.is-wide .stat-tile { display: flex; flex-direction: column; justify-content: center; padding: 8px 14px; min-height: 0; overflow: hidden; }
-  body.is-wide .stat-tile .k { font-size: clamp(10px, calc(var(--vh, 1vh) * 2.8), 13px); }
-  body.is-wide .stat-tile .v { font-size: clamp(20px, calc(var(--vh, 1vh) * 9), 46px); margin-top: 2px; }
-  body.is-wide .stat-tile .s { font-size: clamp(10px, calc(var(--vh, 1vh) * 2.8), 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  body.is-wide .s1 .stats-note { margin: 0; font-size: 12px; }
-  body.is-wide .stats-slide .stats-card { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 10px 14px 10px; }
-  body.is-wide .stats-card h3 { font-size: clamp(13px, calc(var(--vh, 1vh) * 4), 16px); }
-  body.is-wide .stats-card .sub { margin-bottom: 6px; font-size: 11.5px; }
-  body.is-wide .freq-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; flex: 1 1 auto; min-height: 0; }
-  body.is-wide .freq-row { padding: 1px 0; font-size: clamp(11px, calc(var(--vh, 1vh) * 3.4), 15px); }
-  body.is-wide .freq-group { margin-top: 2px; }
-  body.is-wide .stats-slide.s3 { grid-template-columns: 1fr 1.25fr; }
-  body.is-wide .stats-card .chart-svg { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; }
-  body.is-wide .chart-scroll { overflow: hidden; flex: 1 1 auto; min-height: 0; display: flex; }
-  body.is-wide .daily-svg { min-width: 0; }
-  body.is-wide .s4 .stats-note { margin-top: 4px; font-size: 12px; }
-  body.is-wide .stats-foot { display: none; }
-  body.is-wide .stats-dots { display: flex; justify-content: center; gap: 8px; flex: 0 0 auto; }
+  body.stats-paged .stats-page { overflow: hidden; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  body.stats-paged .stats-inner { max-width: none; height: 100%; gap: 6px; }
+  body.stats-paged .stats-head { flex: 0 0 auto; flex-wrap: nowrap; gap: 8px; }
+  body.stats-paged .stats-head h2 { font-size: clamp(16px, calc(var(--vh, 1vh) * 5), 24px); }
+  body.stats-paged .stats-back, body.stats-paged .stats-range button { padding: 5px 11px; font-size: 12px; }
+  body.stats-paged #statsBody { flex: 1 1 auto; min-height: 0; overflow: hidden; display: block; }
+  body.stats-paged .stats-track { flex-direction: row; gap: 0; height: 100%; transition: transform 0.35s cubic-bezier(.2,.8,.2,1); }
+  body.stats-paged .stats-slide { flex: 0 0 100%; height: 100%; min-width: 0; padding: 2px 3px 4px; display: grid; gap: 10px; }
+  body.stats-paged .stats-slide.s1 { grid-template-rows: minmax(0, 1fr) auto; }
+  body.stats-paged .s1 .stats-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); height: 100%; min-height: 0; }
+  body.stats-paged .stat-tile { display: flex; flex-direction: column; justify-content: center; padding: 8px 14px; min-height: 0; overflow: hidden; }
+  body.stats-paged .stat-tile .k { font-size: clamp(10px, calc(var(--vh, 1vh) * 2.8), 13px); }
+  body.stats-paged .stat-tile .v { font-size: clamp(20px, calc(var(--vh, 1vh) * 9), 46px); margin-top: 2px; }
+  body.stats-paged .stat-tile .s { font-size: clamp(10px, calc(var(--vh, 1vh) * 2.8), 13px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.stats-paged .s1 .stats-note { margin: 0; font-size: 12px; }
+  body.stats-paged .stats-slide .stats-card { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 10px 14px 10px; }
+  body.stats-paged .stats-card h3 { font-size: clamp(13px, calc(var(--vh, 1vh) * 4), 16px); }
+  body.stats-paged .stats-card .sub { margin-bottom: 6px; font-size: 11.5px; }
+  body.stats-paged .freq-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; flex: 1 1 auto; min-height: 0; }
+  body.stats-paged .freq-row { padding: 1px 0; font-size: clamp(11px, calc(var(--vh, 1vh) * 3.4), 15px); }
+  body.stats-paged .freq-group { margin-top: 2px; }
+  body.stats-paged .stats-slide.s3 { grid-template-columns: 1fr 1.25fr; }
+  body.stats-paged .stats-card .chart-svg { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; }
+  body.stats-paged .chart-scroll { overflow: hidden; flex: 1 1 auto; min-height: 0; display: flex; }
+  body.stats-paged .daily-svg { min-width: 0; }
+  body.stats-paged .s4 .stats-note { margin-top: 4px; font-size: 12px; }
+  body.stats-paged .stats-foot { display: none; }
+  body.stats-paged .stats-dots { display: flex; justify-content: center; gap: 8px; flex: 0 0 auto; }
   .stats-dots button { width: 9px; height: 9px; border-radius: 50%; border: none; padding: 0; background: var(--line); cursor: pointer; }
   .stats-dots button[aria-current="true"] { background: var(--sage); transform: scale(1.25); }
 
@@ -738,6 +738,57 @@
     .celebrate .rays, .celebrate.show .celebrate-trophy { animation: none; }
     .celebrate.show .celebrate-card, .celebrate.show .celebrate-title span { animation-duration: 0.01s; animation-delay: 0s; }
   }
+
+  /* ===================== Desktop computer (mouse or trackpad, wide window) ===================== */
+  html.is-desktop-html { overscroll-behavior-x: none; }           /* trackpad swipes open the stats instead of going "back" */
+  .desk-only { display: none !important; }
+  body.is-desktop .desk-only { display: inline-flex !important; }
+  /* kids' screen: Stats and Parent mode buttons sit in the bottom-right corner */
+  body.is-desktop.mode-view #switchModeBtn { display: block; position: fixed; top: auto; left: auto; bottom: 18px; right: 20px; width: auto; margin: 0; transform: none; padding: 8px 14px; font-size: 13px; }
+  .desk-btn { position: fixed; bottom: 18px; right: 132px; z-index: 10; align-items: center; gap: 6px;
+    font: 700 13px var(--font-body); color: var(--ink-soft); background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 14px; cursor: pointer; opacity: 0.8; }
+  body.mode-edit .desk-btn, body.stats-open .desk-btn { display: none !important; }
+  body.is-desktop.mode-view.is-wide { padding-bottom: 64px; }   /* room for the corner buttons under the card */
+  /* things you can click show it when the mouse is over them */
+  body.is-desktop :is(.member-tab, .action, .look-option, .stats-back, .edit-corner-btn, .desk-btn, .day-nav-btn, .stats-range button, .day-cell) { transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease; }
+  body.is-desktop :is(.member-tab, .action, .look-option, .stats-back, .edit-corner-btn, .desk-btn, .day-nav-btn):hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10); opacity: 1; }
+  body.is-desktop .day-cell { cursor: pointer; }
+  body.is-desktop .day-cell:hover { transform: translateY(-2px); }
+  body.is-desktop .stats-range button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+  .kbd-hint { font-size: 12px; color: var(--ink-soft); margin: 0; }
+  .kbd-hint kbd { font: 700 11px var(--font-body); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; background: var(--card); }
+
+  /* parent mode: the jar on the left, today's log or settings on the right */
+  body.is-desktop.mode-edit .wrap { max-width: 1240px; display: grid; grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr; column-gap: 28px; align-items: start; }
+  body.is-desktop.mode-edit .wrap > .header { grid-column: 1; grid-row: 1; }
+  body.is-desktop.mode-edit .wrap > .clock { grid-column: 1; grid-row: 2; }
+  body.is-desktop.mode-edit .wrap > .card:not(.edit-only) { grid-column: 1; grid-row: 3; }
+  body.is-desktop.mode-edit .wrap > #editTabBar { grid-column: 2; grid-row: 1; align-self: end; margin-top: 0; }
+  body.is-desktop.mode-edit .wrap > #todaysLogCard, body.is-desktop.mode-edit .wrap > #settingsCard { grid-column: 2; grid-row: 2 / span 3; margin-top: 8px; }
+  body.is-desktop.mode-edit .log-hint .touch-tip { display: none; }
+
+  /* stats: one dashboard that fits the screen, no pages */
+  body.is-desktop .stats-page { overflow: hidden; padding: 22px 28px 20px; }
+  body.is-desktop .stats-inner { max-width: 1500px; height: 100%; gap: 14px; }
+  body.is-desktop .stats-head h2 { font-size: 26px; }
+  body.is-desktop #statsBody { flex: 1 1 auto; min-height: 0; overflow: hidden; display: block; }
+  body.is-desktop .stats-track { display: grid; height: 100%; gap: 14px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.8fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  body.is-desktop .stats-slide { display: grid; gap: 14px; min-width: 0; min-height: 0; }
+  body.is-desktop .stats-slide.s1 { grid-column: 1 / -1; grid-row: 1; }
+  body.is-desktop .s1 .stats-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  body.is-desktop .s1 .stats-note { margin: 0; }
+  body.is-desktop .stats-slide.s2 { grid-column: 1; grid-row: 2; }
+  body.is-desktop .stats-slide.s3 { grid-column: 2 / span 2; grid-row: 2; grid-template-columns: 0.8fr 1fr; }
+  body.is-desktop .stats-slide.s4 { grid-column: 1 / -1; grid-row: 3; }
+  body.is-desktop .stats-slide .stats-card { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  body.is-desktop .stats-card .chart-svg { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; }
+  body.is-desktop .chart-scroll { overflow: hidden; flex: 1 1 auto; min-height: 0; display: flex; }
+  body.is-desktop .daily-svg { min-width: 0; }
+  body.is-desktop .s2 .stats-card { overflow-y: auto; }
+  body.is-desktop .stats-dots, body.is-desktop .stats-foot { display: none; }
 </style>
 </head>
 <body>
@@ -749,6 +800,7 @@
 </script>
 
 <button class="edit-corner-btn" id="switchModeBtn">Parent mode</button>
+<button type="button" class="desk-btn desk-only" id="deskStatsBtn" title="Stats (→)">📊 Stats</button>
 
 <div class="pin-overlay" id="pinOverlay">
   <div class="pin-card">
@@ -775,6 +827,7 @@
     <div id="statsBody"></div>
     <div class="stats-dots" id="statsDots"></div>
     <p class="stats-foot">Swipe right to go back.</p>
+    <p class="kbd-hint desk-only">Press <kbd>Esc</kbd> or <kbd>←</kbd> to go back to the jar.</p>
   </div>
 </section>
 
@@ -825,6 +878,7 @@
   <div class="pill-row edit-only" id="editTabBar" style="margin-bottom:4px;">
     <button id="editTabLog" class="member-tab">Today's log</button>
     <button id="editTabSettings" class="member-tab">⚙️ Settings</button>
+    <button id="editTabStats" class="member-tab desk-only" title="Stats (→)">📊 Stats</button>
     <button id="editTabKid" class="member-tab kid-view-tab">← Kid view</button>
   </div>
 
@@ -840,7 +894,7 @@
         <button id="gotoTodayBtn" class="day-nav-btn today-btn" style="display:none;">Today</button>
       </div>
     </div>
-    <p class="log-hint">Tip: press and hold a behaviour to edit or delete it. Swipe left anywhere for stats.</p>
+    <p class="log-hint">Tip: press and hold a behaviour to edit or delete it.<span class="touch-tip"> Swipe left anywhere for stats.</span></p>
     <div id="dailyLists"></div>
     <div class="section-title" style="margin-top:14px;"><h3 style="font-size:13px;">Behavior modifiers</h3></div>
     <div id="smileyRow"></div>
@@ -1062,7 +1116,7 @@ function defaultState() {
 
 let pinPurpose = 'edit';
 // ---- App version: bump this with every update that gets uploaded ----
-const APP_VERSION = '2.11';
+const APP_VERSION = '2.12';
 const DEFAULT_PATTERN = '3,6,4,2';
 let confirmCallback = null;
 function showConfirm(title, message, onConfirm) {
@@ -3193,6 +3247,10 @@ document.addEventListener('touchmove', e => { if (e.touches && e.touches.length 
 document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 
 // ---- Measure the real visible screen (phones can report stale sizes after rotating) ----
+// A computer with a mouse or trackpad (not a phone or iPad).
+function isDesktopPointer() {
+  try { return window.matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { return false; }
+}
 function updateScreenSize() {
   const w = window.innerWidth, ht = window.innerHeight;
   if (!w || !ht) return;
@@ -3200,8 +3258,13 @@ function updateScreenSize() {
   const wasWide = document.body.classList.contains('is-wide');
   root.setProperty('--app-h', ht + 'px');
   document.documentElement.classList.toggle('kid-lock', document.body.classList.contains('mode-view'));
+  const wasPaged = document.body.classList.contains('stats-paged');
+  const desk = isDesktopPointer() && w >= 1000;
   document.body.classList.toggle('is-wide', w > ht);
   document.body.classList.toggle('is-tall', w <= ht);
+  document.body.classList.toggle('is-desktop', desk);
+  document.documentElement.classList.toggle('is-desktop-html', desk);
+  document.body.classList.toggle('stats-paged', w > ht && !desk);   // sideways phone/iPad: stats split into swipeable pages
   placeModeButton();
   // Size everything from the real screen height, then shrink a little if the days row would be cut off.
   let scale = 1;
@@ -3222,7 +3285,7 @@ function updateScreenSize() {
     }
   }
   if (typeof state !== 'undefined' && state && state.members) state.members.forEach(m => renderTrend(m));
-  if (document.body.classList.contains('stats-open') && wasWide !== (w > ht)) renderStats();
+  if (document.body.classList.contains('stats-open') && (wasWide !== (w > ht) || wasPaged !== document.body.classList.contains('stats-paged'))) renderStats();
 }
 // iPhones can be left slightly zoomed or scrolled after rotating, so taps land away from what's drawn.
 // Re-apply the viewport setting (resets the zoom) and scroll back to the top.
@@ -3491,7 +3554,7 @@ function showStatsSlide(i, animate = true) {
   const track = document.getElementById('statsTrack');
   if (track) {
     track.style.transition = animate ? '' : 'none';
-    track.style.transform = document.body.classList.contains('is-wide') ? 'translateX(' + (-statsSlide * 100) + '%)' : '';
+    track.style.transform = document.body.classList.contains('stats-paged') ? 'translateX(' + (-statsSlide * 100) + '%)' : '';
   }
   const dots = document.getElementById('statsDots');
   if (dots) {
@@ -3511,6 +3574,43 @@ function closeStats() {
   document.getElementById('statsPage').setAttribute('aria-hidden', 'true');
 }
 document.getElementById('statsBack').addEventListener('click', closeStats);
+document.getElementById('deskStatsBtn').addEventListener('click', openStats);
+document.getElementById('editTabStats').addEventListener('click', openStats);
+// Keyboard: → opens the stats (and turns the pages on a sideways tablet), ← or Esc goes back.
+document.addEventListener('keydown', (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (document.querySelector('.pin-overlay.active')) return;
+  const open = document.body.classList.contains('stats-open');
+  const paged = document.body.classList.contains('stats-paged');
+  if (e.key === 'ArrowRight') {
+    if (!open) openStats(); else if (paged) showStatsSlide(statsSlide + 1); else return;
+    e.preventDefault();
+  } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+    if (!open) return;
+    if (e.key === 'ArrowLeft' && paged && statsSlide > 0) showStatsSlide(statsSlide - 1); else closeStats();
+    e.preventDefault();
+  }
+});
+// Trackpad: a two-finger swipe left opens the stats, a swipe right goes back.
+(function () {
+  let sum = 0, last = 0, lockUntil = 0;
+  window.addEventListener('wheel', (e) => {
+    if (!document.body.classList.contains('is-desktop')) return;
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.5) return;
+    const now = performance.now();
+    if (now < lockUntil) { e.preventDefault(); return; }
+    if (now - last > 300) sum = 0;
+    last = now; sum += e.deltaX;
+    if (Math.abs(sum) < 110) return;
+    const open = document.body.classList.contains('stats-open');
+    if (sum > 0 && !open) openStats();
+    else if (sum < 0 && open) closeStats();
+    sum = 0; lockUntil = now + 800;
+    e.preventDefault();
+  }, { passive: false });
+})();
 document.getElementById('statsDots').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showStatsSlide(Number(b.dataset.k)); });
 document.querySelectorAll('.stats-range button').forEach(b => b.addEventListener('click', () => { statsDays = Number(b.dataset.days); renderStats(); }));
 document.getElementById('statsBody').addEventListener('click', (e) => {
@@ -3525,7 +3625,7 @@ document.getElementById('statsBody').addEventListener('click', (e) => {
   const page = () => document.getElementById('statsPage');
   const movers = () => [document.querySelector('.wrap'), document.getElementById('switchModeBtn')].filter(Boolean);
   const isOpen = () => body.classList.contains('stats-open');
-  const isPaged = () => isOpen() && body.classList.contains('is-wide');
+  const isPaged = () => isOpen() && body.classList.contains('stats-paged');
   const clamp = (v) => Math.max(0, Math.min(1, v));
   function setHome(p) { // p = how far the stats cover the jar, 0..1
     movers().forEach((el, i) => { el.style.transition = 'none'; el.style.translate = (-14 * p).toFixed(2) + 'vw 0'; el.style.opacity = String((bases[i] * (1 - 0.6 * p)).toFixed(3)); });
